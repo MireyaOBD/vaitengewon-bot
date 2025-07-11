@@ -1,0 +1,10 @@
+# Entorno virtual
+venv/
+__pycache__/
+
+# Archivos de credenciales y entorno
+.env
+google_credentials.json
+
+# Archivos de sistema
+.DS_Store
