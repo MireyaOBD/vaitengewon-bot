@@ -1,4 +1,5 @@
 # services.py
+
 import gspread
 import json
 import os
@@ -10,36 +11,48 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+# --- FUNCIÓN CORREGIDA PARA GOOGLE SHEETS ---
 def _get_gspread_client():
+    """Obtiene el cliente de gspread usando las credenciales de la variable de entorno."""
     try:
-        return gspread.service_account(filename="google_credentials.json")
-    except FileNotFoundError:
-        print("--- ERROR CRÍTICO: El archivo 'google_credentials.json' no se encontró. ---")
-        raise
-    except Exception:
-        print(f"--- ERROR AL CARGAR CREDENCIALES DE GOOGLE DESDE ARCHIVO ---\n{traceback.format_exc()}")
-        raise
+        creds_json_str = os.getenv("GSPREAD_CREDENTIALS_JSON")
+        if not creds_json_str:
+            print("--- ERROR CRÍTICO: La variable de entorno 'GSPREAD_CREDENTIALS_JSON' no está definida. ---")
+            return None
+        
+        creds_dict = json.loads(creds_json_str)
+        client = gspread.service_account_from_dict(creds_dict)
+        print("--- Conexión con Google Sheets exitosa usando variables de entorno. ---")
+        return client
+    except json.JSONDecodeError:
+        print("--- ERROR CRÍTICO: El contenido de 'GSPREAD_CREDENTIALS_JSON' no es un JSON válido. ---")
+        return None
+    except Exception as e:
+        print(f"--- ERROR CRÍTICO al conectar con Google Sheets: {e} ---")
+        return None
 
 def gspread_append_row(sheet_name: str, data: dict):
     try:
-        SPREADSHEET_ID = "1UrYTSD6b1AF-mEarlfZlgDRXazwP2Xau9sMtpBhXHLA"
         client = _get_gspread_client()
-        spreadsheet = client.open_by_key(SPREADSHEET_ID)
+        if not client: return False # El error ya se imprimió
+
+        spreadsheet = client.open_by_key("1UrYTSD6b1AF-mEarlfZlgDRXazwP2Xau9sMtpBhXHLA")
         worksheet = spreadsheet.worksheet(sheet_name)
         headers = worksheet.row_values(1)
         row_to_insert = [data.get(header, "") for header in headers]
         worksheet.append_row(row_to_insert)
         print(f"Fila añadida a la hoja '{sheet_name}'.")
         return True
-    except Exception:
-        print(f"--- ERROR AL AÑADIR FILA EN GOOGLE SHEETS ---\n{traceback.format_exc()}")
+    except Exception as e:
+        print(f"--- ERROR AL AÑADIR FILA EN GOOGLE SHEETS ('{sheet_name}'): {e} ---")
         return False
 
 def gspread_update_row(sheet_name: str, user_id: str, update_data: dict):
     try:
-        SPREADSHEET_ID = "1UrYTSD6b1AF-mEarlfZlgDRXazwP2Xau9sMtpBhXHLA"
         client = _get_gspread_client()
-        spreadsheet = client.open_by_key(SPREADSHEET_ID)
+        if not client: return False
+
+        spreadsheet = client.open_by_key("1UrYTSD6b1AF-mEarlfZlgDRXazwP2Xau9sMtpBhXHLA")
         worksheet = spreadsheet.worksheet(sheet_name)
         
         headers = worksheet.row_values(1)
@@ -61,15 +74,16 @@ def gspread_update_row(sheet_name: str, user_id: str, update_data: dict):
         
         print(f"Fila para UserID '{user_id}' actualizada en '{sheet_name}'.")
         return True
-    except Exception:
-        print(f"--- ERROR AL ACTUALIZAR FILA EN GOOGLE SHEETS ---\n{traceback.format_exc()}")
+    except Exception as e:
+        print(f"--- ERROR AL ACTUALIZAR FILA EN GOOGLE SHEETS ('{sheet_name}'): {e} ---")
         return False
 
 def gspread_get_row_by_userid(sheet_name: str, user_id: str):
     try:
-        SPREADSHEET_ID = "1UrYTSD6b1AF-mEarlfZlgDRXazwP2Xau9sMtpBhXHLA"
         client = _get_gspread_client()
-        spreadsheet = client.open_by_key(SPREADSHEET_ID)
+        if not client: return None
+
+        spreadsheet = client.open_by_key("1UrYTSD6b1AF-mEarlfZlgDRXazwP2Xau9sMtpBhXHLA")
         worksheet = spreadsheet.worksheet(sheet_name)
         
         headers = worksheet.row_values(1)
@@ -80,8 +94,8 @@ def gspread_get_row_by_userid(sheet_name: str, user_id: str):
         row_data = dict(zip(headers, row_values))
         print(f"Datos obtenidos para UserID '{user_id}' de la hoja '{sheet_name}'.")
         return row_data
-    except Exception:
-        print(f"--- ERROR AL OBTENER FILA DE GOOGLE SHEETS ---\n{traceback.format_exc()}")
+    except Exception as e:
+        print(f"--- ERROR AL OBTENER FILA DE GOOGLE SHEETS ('{sheet_name}'): {e} ---")
         return None
 
 def openai_generate_text(prompt: str, model: str = "gpt-4o", response_format: str = "text"):
@@ -98,8 +112,8 @@ def openai_generate_text(prompt: str, model: str = "gpt-4o", response_format: st
             return json.loads(content_str)
         else:
             return content_str.strip()
-    except Exception:
-        print(f"--- ERROR DE OPENAI ---\n{traceback.format_exc()}")
+    except Exception as e:
+        print(f"--- ERROR DE OPENAI ---\n{e}")
         return None
 
 def notion_create_database(user_id: str):
@@ -125,7 +139,7 @@ def notion_create_database(user_id: str):
         response = requests.post(url, headers=headers, json=payload)
         response.raise_for_status()
         response_data = response.json()
-        db_id = response_data["id"].replace("-", "")
+        db_id = response_data["id"]
         db_url = response_data["url"]
         print(f"Base de datos de Notion creada. ID: {db_id}")
         return {"db_id": db_id, "db_url": db_url}
@@ -166,8 +180,6 @@ def notion_create_page(database_id: str, title: str, content_text: str, index_na
         print(f"--- ERROR AL CREAR PÁGINA EN NOTION '{title}' ---\nError: {e}\nRespuesta: {response.text if 'response' in locals() else 'N/A'}")
         return None
 
-# Reemplace esta función completa en services.py
-
 def send_email(to_address: str, subject: str, html_body: str):
     smtp_host = os.getenv("SMTP_HOST")
     smtp_port = os.getenv("SMTP_PORT")
@@ -175,7 +187,7 @@ def send_email(to_address: str, subject: str, html_body: str):
     smtp_password = os.getenv("SMTP_PASSWORD")
 
     if not all([smtp_host, smtp_port, smtp_user, smtp_password]):
-        print("--- ERROR DE EMAIL: Faltan credenciales SMTP en el archivo .env ---")
+        print("--- ERROR DE EMAIL: Faltan credenciales SMTP en las variables de entorno. ---")
         return False
     
     msg = MIMEMultipart('alternative')
@@ -187,15 +199,13 @@ def send_email(to_address: str, subject: str, html_body: str):
 
     try:
         print(f"--- Conectando a {smtp_host} en puerto {smtp_port} con SSL ---")
-        # Corrección: Se usa SMTP_SSL para conexiones en el puerto 465
-        server = smtplib.SMTP_SSL(smtp_host, int(smtp_port))
-        # server.starttls() no es necesario con SMTP_SSL
-        server.login(smtp_user, smtp_password)
-        print(f"--- Enviando email a {to_address} ---")
-        server.sendmail(smtp_user, to_address, msg.as_string())
-        server.quit()
+        with smtplib.SMTP_SSL(smtp_host, int(smtp_port)) as server:
+            server.login(smtp_user, smtp_password)
+            print(f"--- Enviando email a {to_address} ---")
+            server.sendmail(smtp_user, to_address, msg.as_string())
+        
         print("--- Email enviado exitosamente ---")
         return True
-    except Exception:
-        print(f"--- ERROR AL ENVIAR EMAIL ---\n{traceback.format_exc()}")
+    except Exception as e:
+        print(f"--- ERROR AL ENVIAR EMAIL: {e} ---")
         return False
