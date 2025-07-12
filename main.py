@@ -6,13 +6,29 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import services
 import workflows
+from fastapi.middleware.cors import CORSMiddleware # ÚNICA IMPORTACIÓN NUEVA
 
 load_dotenv()
 
 class ChatInput(BaseModel):
+    # Usamos tu definición original, que es sintácticamente correcta.
     UserID: str; Answer1: str; Answer2: str; Answer3: str; Answer4: str; Answer5: str; Answer6: str
 
 app = FastAPI(title="Vaitengewon Bot API")
+
+# ==============================================================================
+# AQUÍ VA EL BLOQUE DE CORS - Justo después de crear 'app'
+# ==============================================================================
+origins = ["*"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# ==============================================================================
 
 def run_vaitengewon_workflow(chat_data: dict):
     user_id = chat_data['UserID']
