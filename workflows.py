@@ -1664,74 +1664,77 @@ def _procesar_modulo(user_id: str, db_id: str, sheet_name: str, modulo_name: str
 # 4. FUNCIONES DE BLOQUE
 # ==============================================================================
 
+# En workflows.py, reemplaza esta función
+
 def run_esencia_block(user_id: str, db_id: str, contexto_inicial: dict):
     print(f"[{user_id}] - ✅ Iniciando Bloque ESENCIA (5 módulos).")
     
     contexto_acumulado = contexto_inicial.copy()
-    sheet_name = "ESENCIA_EXTENSO"
+    sheet_name = "ESENCIA"
     
-    # Es una buena práctica crear una fila vacía para el usuario al empezar el bloque
     services.gspread_append_row(sheet_name, {"UserID": user_id})
 
     # --- Módulo 1: DOLOR ---
     dolor_json = _procesar_modulo(
-        user_id=user_id, db_id=db_id, sheet_name=sheet_name, modulo_name="Dolor",
-        prompt_extenso=PROMPT_01_DOLOR, 
-        contexto=contexto_acumulado, notion_index="ESENCIA"
+        user_id, db_id, sheet_name, "Dolor",
+        PROMPT_01_DOLOR, contexto_acumulado, "ESENCIA"
     )
     if not dolor_json: return False
-    # Extraemos la 'sintesis' para usarla en el siguiente prompt
     contexto_acumulado["sintesis_diagnostico_dolor"] = dolor_json.get("diagnostico_dolor", {}).get("sintesis_diagnostico_clinico", "")
 
     # --- Módulo 2: PROPÓSITO ---
     proposito_json = _procesar_modulo(
-        user_id=user_id, db_id=db_id, sheet_name=sheet_name, modulo_name="Propósito",
-        prompt_extenso=PROMPT_02_PROPOSITO,
-        contexto=contexto_acumulado, notion_index="ESENCIA"
+        user_id, db_id, sheet_name, "Propósito",
+        PROMPT_02_PROPOSITO, contexto_acumulado, "ESENCIA"
     )
     if not proposito_json: return False
     contexto_acumulado["declaracion_proposito"] = proposito_json.get("analisis_proposito", {}).get("declaracion_proposito", "")
 
     # --- Módulo 3: MISIÓN ---
     mision_json = _procesar_modulo(
-        user_id=user_id, db_id=db_id, sheet_name=sheet_name, modulo_name="Misión",
-        prompt_extenso=PROMPT_03_MISION,
-        contexto=contexto_acumulado, notion_index="ESENCIA"
+        user_id, db_id, sheet_name, "Misión",
+        PROMPT_03_MISION, contexto_acumulado, "ESENCIA"
     )
     if not mision_json: return False
     contexto_acumulado["declaracion_mision"] = mision_json.get("definicion_mision", {}).get("declaracion_mision_completa", "")
 
     # --- Módulo 4: VISIÓN ---
     vision_json = _procesar_modulo(
-        user_id=user_id, db_id=db_id, sheet_name=sheet_name, modulo_name="Visión",
-        prompt_extenso=PROMPT_04_VISION,
-        contexto=contexto_acumulado, notion_index="ESENCIA"
+        user_id, db_id, sheet_name, "Visión",
+        PROMPT_04_VISION, contexto_acumulado, "ESENCIA"
     )
     if not vision_json: return False
     contexto_acumulado["declaracion_vision"] = vision_json.get("definicion_vision", {}).get("declaracion_vision_final", "")
 
     # --- Módulo 5: VALORES ---
     valores_json = _procesar_modulo(
-        user_id=user_id, db_id=db_id, sheet_name=sheet_name, modulo_name="Valores",
-        prompt_extenso=PROMPT_05_VALORES,
-        contexto=contexto_acumulado, notion_index="ESENCIA"
+        user_id, db_id, sheet_name, "Valores",
+        PROMPT_05_VALORES, contexto_acumulado, "ESENCIA"
     )
     if not valores_json: return False
-    # Para el contexto del siguiente bloque, convertimos la lista de valores a un string
     valores_finales = valores_json.get("definicion_valores_empresa", {}).get("valores_fundamentales", [])
     contexto_acumulado["valores_empresa"] = json.dumps(valores_finales)
     
+    # --- PASO FINAL DEL BLOQUE: Actualizar columnas de estado ---
+    print(f"[{user_id}] - ...Actualizando estado final del bloque ESENCIA en Google Sheets...")
+    estado_final_data = {
+        "LastUpdate": datetime.now().isoformat(),
+        "Status_Esencia": "Completed"
+    }
+    if not services.gspread_update_row(sheet_name, user_id, estado_final_data):
+        print(f"[{user_id}] - ⚠️ ADVERTENCIA: No se pudo actualizar el estado final en la hoja '{sheet_name}'.")
+        # No detenemos el flujo, pero lo registramos.
+
     print(f"[{user_id}] - ✅ Bloque ESENCIA completado exitosamente.")
-    return contexto_acumulado # Devolvemos el contexto enriquecido para el siguiente bloque
+    return contexto_acumulado
 
 # En workflows.py, reemplaza la función run_business_model_block
 
 def run_business_model_block(user_id: str, db_id: str, contexto_inicial: dict):
-    print(f"[{user_id}] - ✅ Iniciando Bloque MODELO DE NEGOCIO (13 módulos).")
+    print(f"[{user_id}] - ✅ Iniciando Bloque MODELO DE NEGOCIO (14 módulos).")
     
     contexto_acumulado = contexto_inicial.copy()
-    sheet_name = "MODELO_NEGOCIO_EXTENSO"
-    
+    sheet_name = "MODELO DE NEGOCIO"
     # Creamos una fila inicial para este usuario en la nueva hoja
     services.gspread_append_row(sheet_name, {"UserID": user_id})
 
@@ -1804,18 +1807,26 @@ def run_business_model_block(user_id: str, db_id: str, contexto_inicial: dict):
     if not diferenciador_json: return False
     contexto_acumulado["diferenciador_json"] = json.dumps(diferenciador_json)
 
-    print(f"[{user_id}] - ✅ Bloque MODELO DE NEGOCIO completado exitosamente.")
-    return contexto_acumulado # Devolvemos el contexto final y super enriquecido
+    print(f"[{user_id}] - ...Actualizando estado final del bloque MODELO DE NEGOCIO en Google Sheets...")
+    estado_final_data = {
+        "LastUpdate": datetime.now().isoformat(), # <--- AÑADIDO
+        "STATUS_MODELO": "Completed"
+    }
+    if not services.gspread_update_row(sheet_name, user_id, estado_final_data):
+        print(f"[{user_id}] - ⚠️ ADVERTENCIA: No se pudo actualizar el estado final en la hoja '{sheet_name}'.")
 
+    print(f"[{user_id}] - ✅ Bloque MODELO DE NEGOCIO completado exitosamente.")
+    return contexto_acumulado
 # En workflows.py, reemplaza la función run_mvp_block
 
+# En workflows.py, reemplaza esta función
+
 def run_mvp_block(user_id: str, db_id: str, contexto_inicial: dict):
-    print(f"[{user_id}] - ✅ Iniciando Bloque MVP (6 módulos).")
+    print(f"[{user_id}] - ✅ Iniciando Bloque MVP (5 módulos).") # Son 5 módulos, no 6
     
     contexto_acumulado = contexto_inicial.copy()
-    sheet_name = "MVP_EXTENSO"
+    sheet_name = "PMV"
     
-    # Creamos una fila inicial para este usuario en la nueva hoja
     services.gspread_append_row(sheet_name, {"UserID": user_id})
 
     # --- Módulo 20: HIPÓTESIS ---
@@ -1841,24 +1852,133 @@ def run_mvp_block(user_id: str, db_id: str, contexto_inicial: dict):
     # --- Módulo 24: COSTOS DEL MVP ---
     costos_mvp_json = _procesar_modulo(user_id, db_id, sheet_name, "Costos del MVP", PROMPT_24_COSTOS_MVP, contexto_acumulado, "PROYECTO")
     if not costos_mvp_json: return False
-    # Este es el último módulo, no necesita añadir su resultado al contexto para los siguientes.
     
+    # --- PASO FINAL DEL BLOQUE: Actualizar columnas de estado ---
+    print(f"[{user_id}] - ...Actualizando estado final del bloque MVP en Google Sheets...")
+    estado_final_data = {
+        "LastUpdate": datetime.now().isoformat(),
+        "Status_PMV": "Completed" # Usando el nombre exacto de tu columna
+    }
+    if not services.gspread_update_row(sheet_name, user_id, estado_final_data):
+        print(f"[{user_id}] - ⚠️ ADVERTENCIA: No se pudo actualizar el estado final en la hoja '{sheet_name}'.")
+
     print(f"[{user_id}] - ✅ Bloque MVP completado exitosamente.")
-    return contexto_acumulado # Devolvemos el contexto final
-# ==============================================================================
-# 5. FUNCIONES DE EMAIL
-# ==============================================================================
-# (Tu código de EMAIL_BODY_TEMPLATE, EMAIL_ANSWERS_CONFIRMATION_TEMPLATE,
-# y las funciones send_user_answers_email y run_f06_send_notification
-# se quedan aquí, sin cambios por ahora)
+    return contexto_acumulado
 
-EMAIL_BODY_TEMPLATE = """..."""
-EMAIL_ANSWERS_CONFIRMATION_TEMPLATE = """..."""
 
+# ==============================================================================
+# 5. FUNCIONES DE EMAIL (CON LOGO Y ESTILOS DE MARCA)
+# ==============================================================================
+
+# --- CONFIGURACIÓN DEL LOGO ---
+# ¡¡¡PEGA AQUÍ LA URL DE TU LOGO QUE COPIASTE DE WORDPRESS!!!
+LOGO_URL = "https://drive.google.com/file/d/1YYdLFjzGaKRUB3SecU_9cSIUNnwJhvrH/view?usp=drive_link"
+
+# --- PLANTILLA DE EMAIL FINAL (CON LOGO Y ESTILOS DE MARCA) ---
+EMAIL_BODY_TEMPLATE = f"""
+<div style="font-family: 'Lora', Garamond, serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+  <div style="background: linear-gradient(45deg, #09CBD9, #7030A0, #FF1895, #FEF100); padding: 25px; text-align: center;">
+    <img src="{LOGO_URL}" alt="Vaitengewon Club Logo" style="max-width: 250px; height: auto;">
+  </div>
+  <div style="padding: 20px 30px;">
+    <h2 style="font-family: 'Ubuntu', Arial, sans-serif; color: #7030A0;">¡Tu Vaitengewon Map está casi listo!</h2>
+    <p style="line-height: 1.6;">Hola <strong>{{user_name}}</strong>,</p>
+    <p style="line-height: 1.6;">¡Buenas noticias! Nuestro sistema ha terminado de generar tu <strong>Vaitengewon Map</strong>, el plan estratégico completo para tu negocio.</p>
+    <p style="line-height: 1.6;">En un plazo máximo de 24 horas, recibirás un segundo correo (enviado por un miembro de nuestro equipo) con un enlace a tu mapa personalizado en una plantilla de Notion. No te preocupes, ¡usar Notion es completamente gratis y te permitirá editar y adaptar tu plan como quieras!</p>
+    <p style="line-height: 1.6;">Ese correo también incluirá el enlace para que puedas agendar tu sesión de asesoría 1 a 1, donde revisaremos juntos la estrategia y resolveremos todas tus dudas.</p>
+    <p style="line-height: 1.6;">Si por alguna razón no recibes el correo en el plazo indicado, no dudes en contactarnos directamente a <strong>contacto@vaitengewon.club</strong>.</p>
+    <p style="line-height: 1.6;">¡Estamos emocionados de acompañarte en este siguiente paso!</p>
+    <p style="line-height: 1.6;">Saludos,<br>El equipo de Vaitengewon Club</p>
+  </div>
+  <div style="background-color: #7030A0; color: white; text-align: center; padding: 15px; font-size: 12px; font-family: 'Ubuntu Mono', monospace;">
+    © {{current_year}} Vaitengewon Club. Todos los derechos reservados.
+  </div>
+</div>
+"""
+
+# --- PLANTILLA DE EMAIL DE CONFIRMACIÓN DE RESPUESTAS (CON LOGO Y ESTILOS DE MARCA) ---
+EMAIL_ANSWERS_CONFIRMATION_TEMPLATE = f"""
+<div style="font-family: 'Lora', Garamond, serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+  <div style="background: linear-gradient(45deg, #09CBD9, #7030A0, #FF1895, #FEF100); padding: 25px; text-align: center;">
+    <img src="{LOGO_URL}" alt="Vaitengewon Club Logo" style="max-width: 250px; height: auto;">
+  </div>
+  <div style="padding: 20px 30px;">
+    <h2 style="font-family: 'Ubuntu', Arial, sans-serif; color: #7030A0;">Hemos recibido tus respuestas</h2>
+    <p style="line-height: 1.6;">Hola <strong>{{user_name}}</strong>,</p>
+    <p style="line-height: 1.6;">¡Gracias por completar el primer paso! Hemos recibido tu información y nuestro sistema ya ha comenzado a trabajar en tu <strong>Vaitengewon Map</strong>.</p>
+    <p style="line-height: 1.6;">Para tu referencia, aquí tienes un resumen de las respuestas que nos proporcionaste:</p>
+    <div style="background-color: #f9f9f9; border-left: 5px solid #7030A0; padding: 15px; margin: 20px 0; font-family: 'Ubuntu Mono', monospace;">
+        <p><strong>1. Tu Nombre:</strong><br>{{Answer1}}</p>
+        <p><strong>2. Tu Negocio o Idea:</strong><br>{{Answer2}}</p>
+        <p><strong>3. Tu Servicio/Producto Principal:</strong><br>{{Answer3}}</p>
+        <p><strong>4. Tu Cliente Ideal:</strong><br>{{Answer4}}</p>
+        <p><strong>5. Tu Mayor Desafío Actual:</strong><br>{{Answer5}}</p>
+        <p><strong>6. Tu Email de Contacto:</strong><br>{{Answer6}}</p>
+    </div>
+    <p style="line-height: 1.6;">No necesitas hacer nada más por ahora. El proceso continuará automáticamente.</p>
+    <p style="line-height: 1.6;">Saludos,<br>El equipo de Vaitengewon Club</p>
+  </div>
+  <div style="background-color: #7030A0; color: white; text-align: center; padding: 15px; font-size: 12px; font-family: 'Ubuntu Mono', monospace;">
+    © {{current_year}} Vaitengewon Club. Todos los derechos reservados.
+  </div>
+</div>
+"""
+# --- FUNCIÓN PARA ENVIAR CONFIRMACIÓN DE RESPUESTAS ---
 def send_user_answers_email(chat_data: dict):
-    # ... (tu código existente) ...
-    return True
+    user_id = chat_data.get('UserID', 'N/A')
+    print(f"[{user_id}] - ...Iniciando envío de email de confirmación de respuestas...")
+    try:
+        user_name = chat_data.get("Answer1", "Emprendedor(a)")
+        user_email = chat_data.get("Answer6")
+        if not user_email:
+            print(f"[{user_id}] - ⚠️ ADVERTENCIA: No se encontró email en Answer6. No se puede enviar confirmación.")
+            return False
+        
+        # OJO: La plantilla ya tiene el LOGO_URL, solo necesitamos formatear el resto.
+        email_body = EMAIL_ANSWERS_CONFIRMATION_TEMPLATE.format(
+            user_name=user_name,
+            Answer1=chat_data.get("Answer1", ""), Answer2=chat_data.get("Answer2", ""),
+            Answer3=chat_data.get("Answer3", ""), Answer4=chat_data.get("Answer4", ""),
+            Answer5=chat_data.get("Answer5", ""), Answer6=chat_data.get("Answer6", ""),
+            current_year=datetime.now().year
+        )
+        subject = f"¡Hemos recibido tus respuestas, {user_name}!"
+        services.send_email(to_address=user_email, subject=subject, html_body=email_body)
+        print(f"[{user_id}] - ✅ Email de confirmación de respuestas enviado a {user_email}.")
+        return True
+    except Exception as e:
+        print(f"[{user_id}] - 🔥 ERROR al intentar enviar el email de confirmación de respuestas: {e}")
+        return False
 
+# --- FUNCIÓN PARA ENVIAR NOTIFICACIÓN FINAL ---
 def run_f06_send_notification(user_id: str):
-    # ... (tu código existente) ...
-    return True
+    print(f"[{user_id}] - Iniciando Fase Final: Envío de Notificación.")
+    try:
+        user_data = services.gspread_get_row_by_userid("INICIO", user_id)
+        if not user_data: 
+            print(f"[{user_id}] - ❌ ERROR F06: No se encontraron datos para el usuario en la hoja INICIO.")
+            return False
+        
+        user_name = user_data.get("Answer1", "emprendedor(a)")
+        user_email = user_data.get("userEmail")
+        if not user_email: 
+            print(f"[{user_id}] - ❌ ERROR F06: No se encontró el email del usuario.")
+            return False
+            
+        current_year = datetime.now().year
+        # Email para el usuario
+        email_body_user = EMAIL_BODY_TEMPLATE.format(user_name=user_name, current_year=current_year)
+        subject_user = f"Hola {user_name}, ¡Tu Vaitengewon Map está casi listo! ✨"
+        services.send_email(to_address=user_email, subject=subject_user, html_body=email_body_user)
+        print(f"[{user_id}] - ✅ Email de finalización enviado al usuario {user_email}.")
+        
+        # Email para el administrador
+        admin_email_body = f"Se ha completado el flujo para UserID: {user_id}<br>Email: {user_email}"
+        services.send_email(to_address="vaitengewon@gmail.com", subject=f"Notificación: Flujo Completado para {user_id}", html_body=admin_email_body)
+        print(f"[{user_id}] - ✅ Email de notificación enviado al administrador.")
+        
+        print(f"[{user_id}] - ✅ Fase Final (Notificación) completada.")
+        return True
+    except Exception as e:
+        print(f"[{user_id}] - 🔥 ERROR en la Fase Final (Notificación): {e}")
+        return False
