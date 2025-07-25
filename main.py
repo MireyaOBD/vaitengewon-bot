@@ -32,7 +32,12 @@ app.add_middleware(
 
 def run_vaitengewon_workflow(chat_data: dict):
     user_id = chat_data['UserID']
-    print(f"[{user_id}] - Iniciando flujo de trabajo completo...")
+    print(f"[{user_id}] - ✅ INICIANDO FLUJO DE TRABAJO COMPLETO...")
+
+    try:
+        # --- NUEVO PASO: Enviar confirmación de respuestas al usuario ---
+        workflows.send_user_answers_email(chat_data)
+        # --- FIN DEL NUEVO PASO ---
 
     # Fases 01 y 02: Configuración
     initial_sheet_data = {

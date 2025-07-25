@@ -245,6 +245,35 @@ EMAIL_BODY_TEMPLATE = """
   </div>
 </div>
 """
+# ==============================================================================
+# PLANTILLA DE EMAIL - CONFIRMACIÓN DE RESPUESTAS
+# ==============================================================================
+EMAIL_ANSWERS_CONFIRMATION_TEMPLATE = """
+<div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+  <div style="background-color: #f8f8f8; padding: 20px; text-align: center;">
+    <img src="https://i.imgur.com/uP1ZkU6.png" alt="Vaitengewon Club Logo" style="max-width: 150px;">
+  </div>
+  <div style="padding: 20px;">
+    <h2 style="color: #5A29E4;">Hemos recibido tus respuestas</h2>
+    <p>Hola <strong>{user_name}</strong>,</p>
+    <p>¡Gracias por completar el primer paso! Hemos recibido tu información y nuestro sistema ya ha comenzado a trabajar en tu <strong>Vaitengewon Map</strong>.</p>
+    <p>Para tu referencia, aquí tienes un resumen de las respuestas que nos proporcionaste:</p>
+    <div style="background-color: #f9f9f9; border-left: 4px solid #5A29E4; padding: 15px; margin: 20px 0;">
+        <p><strong>1. Tu Nombre:</strong><br>{Answer1}</p>
+        <p><strong>2. Tu Negocio o Idea:</strong><br>{Answer2}</p>
+        <p><strong>3. Tu Servicio/Producto Principal:</strong><br>{Answer3}</p>
+        <p><strong>4. Tu Cliente Ideal:</strong><br>{Answer4}</p>
+        <p><strong>5. Tu Mayor Desafío Actual:</strong><br>{Answer5}</p>
+        <p><strong>6. Tu Email de Contacto:</strong><br>{Answer6}</p>
+    </div>
+    <p>No necesitas hacer nada más por ahora. En breve, el proceso continuará y te mantendremos informado.</p>
+    <p>Saludos,<br>El equipo de Vaitengewon Club</p>
+  </div>
+  <div style="background-color: #5A29E4; color: white; text-align: center; padding: 10px; font-size: 12px;">
+    © {current_year} Vaitengewon Club. Todos los derechos reservados.
+  </div>
+</div>
+"""
 
 def _create_notion_page_from_content(database_id: str, title: str, content: str, index_name: str = "ESENCIA"):
     return services.notion_create_page(database_id=database_id, title=title, content_text=content, index_name=index_name)
@@ -402,3 +431,47 @@ def run_f06_send_notification(user_id: str):
     
     print(f"[{user_id}] - Fase 06 (Notificación) completada.")
     return True
+
+# En workflows.py, añade esta función al final del archivo
+
+# ==============================================================================
+# FUNCIÓN DE WORKFLOW - ENVIAR CONFIRMACIÓN DE RESPUESTAS
+# ==============================================================================
+def send_user_answers_email(chat_data: dict):
+    """
+    Formatea y envía un email al usuario con el resumen de sus respuestas.
+    """
+    user_id = chat_data.get('UserID', 'N/A')
+    print(f"[{user_id}] - ...Iniciando envío de email de confirmación de respuestas...")
+
+    try:
+        user_name = chat_data.get("Answer1", "Emprendedor(a)")
+        user_email = chat_data.get("Answer6") # La respuesta 6 es el email
+
+        if not user_email:
+            print(f"[{user_id}] - ⚠️ ADVERTENCIA: No se encontró email en Answer6. No se puede enviar confirmación.")
+            return False
+
+        # Prepara el contenido del email usando la plantilla
+        email_body = EMAIL_ANSWERS_CONFIRMATION_TEMPLATE.format(
+            user_name=user_name,
+            Answer1=chat_data.get("Answer1", ""),
+            Answer2=chat_data.get("Answer2", ""),
+            Answer3=chat_data.get("Answer3", ""),
+            Answer4=chat_data.get("Answer4", ""),
+            Answer5=chat_data.get("Answer5", ""),
+            Answer6=chat_data.get("Answer6", ""),
+            current_year=datetime.now().year
+        )
+        
+        subject = f"¡Hemos recibido tus respuestas, {user_name}!"
+        
+        # Llama al servicio de envío de email
+        services.send_email(to_address=user_email, subject=subject, html_body=email_body)
+        
+        print(f"[{user_id}] - ✅ Email de confirmación de respuestas enviado a {user_email}.")
+        return True
+
+    except Exception as e:
+        print(f"[{user_id}] - 🔥 ERROR al intentar enviar el email de confirmación de respuestas: {e}")
+        return False
