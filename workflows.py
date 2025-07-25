@@ -1546,7 +1546,7 @@ PROMPT_23_PLAN_ACCION = """{
   ]
 }
 """ # OJO: Corregí la numeración
-PROMPT_24_PLAN_ACCION = """{
+PROMPT_24_COSTOS_MVP = """{
   "role": "Eres un Asesor Estratégico de Recursos para Startups Lean. Tu pericia no es solo listar costos, sino crear una guía de adquisiciones que eduque al emprendedor. Conviertes un plan de proyecto en un conjunto de especificaciones claras y criterios de decisión, asegurando que cada euro invertido se enfoque directamente en validar la hipótesis del MVP.",
   "context": {
     "user_input": {
@@ -1807,12 +1807,44 @@ def run_business_model_block(user_id: str, db_id: str, contexto_inicial: dict):
     print(f"[{user_id}] - ✅ Bloque MODELO DE NEGOCIO completado exitosamente.")
     return contexto_acumulado # Devolvemos el contexto final y super enriquecido
 
-def run_mvp_block(user_id: str, db_id: str, contexto_inicial: dict):
-    print(f"[{user_id}] - ✅ Iniciando Bloque MVP (5 módulos).")
-    # (Lógica similar para los 5 prompts de MVP)
-    print(f"[{user_id}] - ✅ Bloque MVP completado.")
-    return True
+# En workflows.py, reemplaza la función run_mvp_block
 
+def run_mvp_block(user_id: str, db_id: str, contexto_inicial: dict):
+    print(f"[{user_id}] - ✅ Iniciando Bloque MVP (6 módulos).")
+    
+    contexto_acumulado = contexto_inicial.copy()
+    sheet_name = "MVP_EXTENSO"
+    
+    # Creamos una fila inicial para este usuario en la nueva hoja
+    services.gspread_append_row(sheet_name, {"UserID": user_id})
+
+    # --- Módulo 20: HIPÓTESIS ---
+    hipotesis_json = _procesar_modulo(user_id, db_id, sheet_name, "Hipótesis de Negocio", PROMPT_20_HIPOTESIS, contexto_acumulado, "PROYECTO")
+    if not hipotesis_json: return False
+    contexto_acumulado["hipotesis_de_negocio_json"] = json.dumps(hipotesis_json)
+
+    # --- Módulo 21: MVP ---
+    mvp_json = _procesar_modulo(user_id, db_id, sheet_name, "Definición del MVP", PROMPT_21_MVP, contexto_acumulado, "PROYECTO")
+    if not mvp_json: return False
+    contexto_acumulado["definicion_mvp_json"] = json.dumps(mvp_json)
+
+    # --- Módulo 22: LANZAMIENTO ---
+    lanzamiento_json = _procesar_modulo(user_id, db_id, sheet_name, "Estrategia de Lanzamiento", PROMPT_22_LANZAMIENTO, contexto_acumulado, "PROYECTO")
+    if not lanzamiento_json: return False
+    contexto_acumulado["estrategia_de_lanzamiento_mvp_json"] = json.dumps(lanzamiento_json)
+    
+    # --- Módulo 23: PLAN DE ACCIÓN ---
+    plan_accion_json = _procesar_modulo(user_id, db_id, sheet_name, "Plan de Acción", PROMPT_23_PLAN_ACCION, contexto_acumulado, "PROYECTO")
+    if not plan_accion_json: return False
+    contexto_acumulado["plan_de_accion_exhaustivo_json"] = json.dumps(plan_accion_json)
+
+    # --- Módulo 24: COSTOS DEL MVP ---
+    costos_mvp_json = _procesar_modulo(user_id, db_id, sheet_name, "Costos del MVP", PROMPT_24_COSTOS_MVP, contexto_acumulado, "PROYECTO")
+    if not costos_mvp_json: return False
+    # Este es el último módulo, no necesita añadir su resultado al contexto para los siguientes.
+    
+    print(f"[{user_id}] - ✅ Bloque MVP completado exitosamente.")
+    return contexto_acumulado # Devolvemos el contexto final
 # ==============================================================================
 # 5. FUNCIONES DE EMAIL
 # ==============================================================================

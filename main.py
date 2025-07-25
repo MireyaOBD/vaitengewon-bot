@@ -8,12 +8,11 @@ from dotenv import load_dotenv
 import services
 import workflows
 from fastapi.middleware.cors import CORSMiddleware
-import traceback # <--- IMPORTACIÓN NECESARIA PARA MANEJAR ERRORES
+import traceback 
 
 load_dotenv()
 
 class ChatInput(BaseModel):
-    # Usamos tu definición original, que es sintácticamente correcta.
     UserID: str; Answer1: str; Answer2: str; Answer3: str; Answer4: str; Answer5: str; Answer6: str
 
 app = FastAPI(title="Vaitengewon Bot API")
@@ -32,8 +31,6 @@ app.add_middleware(
 )
 # ==============================================================================
 
-# En main.py
-
 def run_vaitengewon_workflow(chat_data: dict):
     user_id = chat_data['UserID']
     print(f"[{user_id}] - ✅ INICIANDO FLUJO DE TRABAJO COMPLETO...")
@@ -47,10 +44,9 @@ def run_vaitengewon_workflow(chat_data: dict):
             print(f"[{user_id}] - ❌ DETENIDO: Fallo crítico al crear la base de datos en Notion.")
             return
 
-        # Preparamos el contexto inicial con las respuestas del chat
         contexto_inicial = {
             "idea_negocio": chat_data.get("Answer2"),
-            "que_vende": chat_data.get("Answer2"), # O puedes usar Answer3 si es más específico
+            "que_vende": chat_data.get("Answer2"),
             "a_quien_vende": chat_data.get("Answer4"),
             "producto_principal": chat_data.get("Answer3")
         }
@@ -78,15 +74,30 @@ def run_vaitengewon_workflow(chat_data: dict):
             return
         
         # --- BLOQUE 3: MVP ---
-        # contexto_post_mvp = workflows.run_mvp_block(...)
+        contexto_post_mvp = workflows.run_mvp_block(
+            user_id=user_id,
+            db_id=db_info.get("db_id"),
+            contexto_inicial=contexto_post_modelo
+        )
+        if not contexto_post_mvp:
+            print(f"[{user_id}] - ❌ DETENIDO: El bloque MVP falló.")
+            return
 
-        # Fase Final: Envío de Notificación (la moveremos al final de todo el flujo)
-        # if not workflows.run_f06_send_notification(user_id=user_id):
-        #     print(f"[{user_id}] - ❌ DETENIDO: La Fase Final (Notificación) falló.")
-        #     return
+        # --- FASE FINAL: Notificación de finalización ---
+        if not workflows.run_f06_send_notification(user_id=user_id):
+            print(f"[{user_id}] - ⚠️ ADVERTENCIA: La notificación final falló.")
 
-        print(f"[{user_id}] - ✅🎉 FASES IMPLEMENTADAS HASTA AHORA, FINALIZADAS.")
+        print(f"[{user_id}] - ✅🎉 FLUJO DE TRABAJO COMPLETO FINALIZADO CON ÉXITO.")
 
     except Exception as e:
         print(f"[{user_id}] - 🔥🔥🔥 ERROR INESPERADO Y FATAL EN EL WORKFLOW: {e} 🔥🔥🔥")
         traceback.print_exc()
+
+@app.post("/webhook/vaitengewon-bot")
+async def start_vaitengewon_process(chat_data: ChatInput, background_tasks: BackgroundTasks):
+    background_tasks.add_task(run_vaitengewon_workflow, chat_data.dict())
+    return {"status": "success", "message": "Proceso iniciado en segundo plano."}
+    
+@app.get("/")
+def read_root():
+    return {"message": "Servidor del Vaitengewon Bot está funcionando."}
