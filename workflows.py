@@ -1664,8 +1664,6 @@ def _procesar_modulo(user_id: str, db_id: str, sheet_name: str, modulo_name: str
 # 4. FUNCIONES DE BLOQUE
 # ==============================================================================
 
-# En workflows.py, reemplaza la función run_esencia_block
-
 def run_esencia_block(user_id: str, db_id: str, contexto_inicial: dict):
     print(f"[{user_id}] - ✅ Iniciando Bloque ESENCIA (5 módulos).")
     
@@ -1726,11 +1724,88 @@ def run_esencia_block(user_id: str, db_id: str, contexto_inicial: dict):
     print(f"[{user_id}] - ✅ Bloque ESENCIA completado exitosamente.")
     return contexto_acumulado # Devolvemos el contexto enriquecido para el siguiente bloque
 
+# En workflows.py, reemplaza la función run_business_model_block
+
 def run_business_model_block(user_id: str, db_id: str, contexto_inicial: dict):
-    print(f"[{user_id}] - ✅ Iniciando Bloque MODELO DE NEGOCIO (14 módulos).")
-    # (Lógica similar para los 14 prompts de Modelo de Negocio)
-    print(f"[{user_id}] - ✅ Bloque MODELO DE NEGOCIO completado.")
-    return True
+    print(f"[{user_id}] - ✅ Iniciando Bloque MODELO DE NEGOCIO (13 módulos).")
+    
+    contexto_acumulado = contexto_inicial.copy()
+    sheet_name = "MODELO_NEGOCIO_EXTENSO"
+    
+    # Creamos una fila inicial para este usuario en la nueva hoja
+    services.gspread_append_row(sheet_name, {"UserID": user_id})
+
+    # --- Módulo 6 y 7: CLIENTE (P1 y P2) ---
+    cliente_p1_json = _procesar_modulo(user_id, db_id, sheet_name, "Cliente P1 (Segmentación)", PROMPT_06_CLIENTE_P1, contexto_acumulado, "MODELO DE NEGOCIO")
+    if not cliente_p1_json: return False
+    contexto_acumulado["segmentacion_clientes_json"] = json.dumps(cliente_p1_json)
+
+    cliente_p2_json = _procesar_modulo(user_id, db_id, sheet_name, "Cliente P2 (Arquetipo)", PROMPT_07_CLIENTE_P2, contexto_acumulado, "MODELO DE NEGOCIO")
+    if not cliente_p2_json: return False
+    contexto_acumulado["analisis_cliente_json"] = json.dumps(cliente_p2_json)
+
+    # --- Módulo 8: PROPUESTA DE VALOR ---
+    prop_valor_json = _procesar_modulo(user_id, db_id, sheet_name, "Propuesta de Valor", PROMPT_08_PROPUESTA_VALOR, contexto_acumulado, "MODELO DE NEGOCIO")
+    if not prop_valor_json: return False
+    contexto_acumulado["propuesta_valor_json"] = json.dumps(prop_valor_json)
+
+    # --- Módulo 9: FUENTES DE INGRESOS ---
+    ingresos_json = _procesar_modulo(user_id, db_id, sheet_name, "Fuentes de Ingresos", PROMPT_09_FUENTES_INGRESOS, contexto_acumulado, "MODELO DE NEGOCIO")
+    if not ingresos_json: return False
+    contexto_acumulado["fuentes_ingresos_json"] = json.dumps(ingresos_json)
+    
+    # --- Módulo 10: INNOVACIÓN ---
+    innovacion_json = _procesar_modulo(user_id, db_id, sheet_name, "Innovación", PROMPT_10_INNOVACION, contexto_acumulado, "MODELO DE NEGOCIO")
+    if not innovacion_json: return False
+    contexto_acumulado["esencia_json"] = json.dumps(contexto_acumulado) # Asumo que el prompt de innovación necesita la esencia
+
+    # --- Módulo 11: CANALES ---
+    canales_json = _procesar_modulo(user_id, db_id, sheet_name, "Canales", PROMPT_11_CANALES, contexto_acumulado, "MODELO DE NEGOCIO")
+    if not canales_json: return False
+    contexto_acumulado["canales_json"] = json.dumps(canales_json)
+    
+    # --- Módulo 12: RELACIONES CON CLIENTES ---
+    relaciones_json = _procesar_modulo(user_id, db_id, sheet_name, "Relaciones con Clientes", PROMPT_12_RELACIONES_CLIENTES, contexto_acumulado, "MODELO DE NEGOCIO")
+    if not relaciones_json: return False
+    contexto_acumulado["relaciones_cliente_json"] = json.dumps(relaciones_json)
+
+    # --- Módulo 13: ALIANZAS CLAVE ---
+    alianzas_json = _procesar_modulo(user_id, db_id, sheet_name, "Alianzas Clave", PROMPT_13_ALIANZAS_CLAVE, contexto_acumulado, "MODELO DE NEGOCIO")
+    if not alianzas_json: return False
+    contexto_acumulado["alianzas_clave_json"] = json.dumps(alianzas_json)
+    
+    # --- Módulo 14: ACTIVIDADES CLAVE ---
+    actividades_json = _procesar_modulo(user_id, db_id, sheet_name, "Actividades Clave", PROMPT_14_ACTIVIDADES_CLAVE, contexto_acumulado, "MODELO DE NEGOCIO")
+    if not actividades_json: return False
+    contexto_acumulado["actividades_clave_json"] = json.dumps(actividades_json)
+
+    # --- Módulo 15: RECURSOS CLAVE ---
+    recursos_json = _procesar_modulo(user_id, db_id, sheet_name, "Recursos Clave", PROMPT_15_RECURSOS_CLAVE, contexto_acumulado, "MODELO DE NEGOCIO")
+    if not recursos_json: return False
+    # Este no parece generar contexto para los siguientes, pero lo procesamos igual.
+
+    # --- Módulo 16: ESTRUCTURA DE COSTES ---
+    costes_json = _procesar_modulo(user_id, db_id, sheet_name, "Estructura de Costes", PROMPT_16_ESTRUCTURA_COSTES, contexto_acumulado, "MODELO DE NEGOCIO")
+    if not costes_json: return False
+    # Este tampoco parece generar contexto.
+
+    # --- Módulo 17: STAKEHOLDERS ---
+    stakeholders_json = _procesar_modulo(user_id, db_id, sheet_name, "Stakeholders", PROMPT_17_STAKEHOLDERS, contexto_acumulado, "MODELO DE NEGOCIO")
+    if not stakeholders_json: return False
+    # Este tampoco parece generar contexto.
+
+    # --- Módulo 18: COMPETENCIA ---
+    competencia_json = _procesar_modulo(user_id, db_id, sheet_name, "Competencia", PROMPT_18_COMPETENCIA, contexto_acumulado, "MODELO DE NEGOCIO")
+    if not competencia_json: return False
+    contexto_acumulado["analisis_competitivo_json"] = json.dumps(competencia_json)
+
+    # --- Módulo 19: DIFERENCIADOR ---
+    diferenciador_json = _procesar_modulo(user_id, db_id, sheet_name, "Diferenciador", PROMPT_19_DIFERENCIADOR, contexto_acumulado, "MODELO DE NEGOCIO")
+    if not diferenciador_json: return False
+    contexto_acumulado["diferenciador_json"] = json.dumps(diferenciador_json)
+
+    print(f"[{user_id}] - ✅ Bloque MODELO DE NEGOCIO completado exitosamente.")
+    return contexto_acumulado # Devolvemos el contexto final y super enriquecido
 
 def run_mvp_block(user_id: str, db_id: str, contexto_inicial: dict):
     print(f"[{user_id}] - ✅ Iniciando Bloque MVP (5 módulos).")

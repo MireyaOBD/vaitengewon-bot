@@ -67,9 +67,15 @@ def run_vaitengewon_workflow(chat_data: dict):
             print(f"[{user_id}] - ❌ DETENIDO: El bloque ESENCIA falló.")
             return
 
-        # (Aquí llamaremos a los siguientes bloques en el futuro)
         # --- BLOQUE 2: MODELO DE NEGOCIO ---
-        # contexto_post_modelo = workflows.run_business_model_block(...)
+        contexto_post_modelo = workflows.run_business_model_block(
+            user_id=user_id,
+            db_id=db_info.get("db_id"),
+            contexto_inicial=contexto_post_esencia
+        )
+        if not contexto_post_modelo:
+            print(f"[{user_id}] - ❌ DETENIDO: El bloque MODELO DE NEGOCIO falló.")
+            return
         
         # --- BLOQUE 3: MVP ---
         # contexto_post_mvp = workflows.run_mvp_block(...)
