@@ -61,6 +61,8 @@ def gspread_append_row(sheet_name: str, data: dict):
         print(f"--- ERROR AL AÑADIR FILA EN GOOGLE SHEETS ('{sheet_name}'): {e} ---")
         return False
 
+# En services.py, reemplaza esta función completa
+
 def gspread_update_row(sheet_name: str, user_id: str, update_data: dict):
     try:
         client = _get_gspread_client()
@@ -70,23 +72,32 @@ def gspread_update_row(sheet_name: str, user_id: str, update_data: dict):
         worksheet = spreadsheet.worksheet(sheet_name)
         
         headers = worksheet.row_values(1)
+        
+        # Primero, encontramos la columna donde está el UserID
         try:
             user_id_col_index = headers.index("UserID") + 1
         except ValueError:
-            print(f"Error: No se encontró el encabezado 'UserID' en la hoja '{sheet_name}'.")
+            print(f"--- ERROR: No se encontró la cabecera 'UserID' en la hoja '{sheet_name}'.")
             return False
 
+        # Ahora, encontramos la fila del usuario específico en esa columna
         cell = worksheet.find(user_id, in_column=user_id_col_index)
         if not cell:
-            print(f"No se encontró el UserID '{user_id}' en la hoja '{sheet_name}'.")
-            return False
+            print(f"--- ADVERTENCIA: No se encontró el UserID '{user_id}' en '{sheet_name}' para actualizar.")
+            return False # Retornamos False para que el workflow principal se detenga
 
+        # Ahora, por cada dato a actualizar, encontramos su columna y actualizamos por coordenada
         for column_name, value in update_data.items():
-            if column_name in headers:
+            try:
+                # Encontramos el índice (posición) de la columna que queremos actualizar
                 col_index = headers.index(column_name) + 1
-                worksheet.update_cell(cell.row, col_index, value)
+                # Actualizamos la celda usando su número de fila y columna
+                worksheet.update_cell(cell.row, col_index, str(value))
+            except ValueError:
+                # Este error ocurre si el column_name no está en los headers
+                print(f"--- ADVERTENCIA: No se encontró la columna '{column_name}' en la hoja '{sheet_name}'.")
         
-        print(f"Fila para UserID '{user_id}' actualizada en '{sheet_name}'.")
+        print(f"--- Fila para UserID '{user_id}' actualizada exitosamente en '{sheet_name}'.")
         return True
     except Exception as e:
         print(f"--- ERROR AL ACTUALIZAR FILA EN GOOGLE SHEETS ('{sheet_name}'): {e} ---")
