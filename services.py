@@ -12,23 +12,37 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 # --- FUNCIÓN CORREGIDA PARA GOOGLE SHEETS ---
+
+# En services.py, reemplaza esta función
+
 def _get_gspread_client():
-    """Obtiene el cliente de gspread usando las credenciales de la variable de entorno."""
+    """
+    Obtiene el cliente de gspread de forma inteligente y robusta.
+    """
+    # Intentar primero el método de producción (variable de entorno)
+    creds_json_str = os.getenv("GSPREAD_CREDENTIALS_JSON")
+    
+    # ¡NUEVA VERIFICACIÓN! Solo intentar si la variable tiene contenido.
+    if creds_json_str and creds_json_str.strip():
+        print("--- Intentando conectar a Google Sheets usando variable de entorno... ---")
+        try:
+            creds_dict = json.loads(creds_json_str)
+            client = gspread.service_account_from_dict(creds_dict)
+            print("--- Conexión con Google Sheets (vía env var) exitosa. ---")
+            return client
+        except Exception as e:
+            print(f"--- ERROR al usar GSPREAD_CREDENTIALS_JSON: {e} ---")
+            # Si falla aquí, continuamos para probar el método de archivo.
+    
+    # Si lo anterior falla o no existe, intentar el método local (archivo)
+    print("--- Variable de entorno no encontrada/válida. Intentando conectar a Google Sheets usando archivo local... ---")
     try:
-        creds_json_str = os.getenv("GSPREAD_CREDENTIALS_JSON")
-        if not creds_json_str:
-            print("--- ERROR CRÍTICO: La variable de entorno 'GSPREAD_CREDENTIALS_JSON' no está definida. ---")
-            return None
-        
-        creds_dict = json.loads(creds_json_str)
-        client = gspread.service_account_from_dict(creds_dict)
-        print("--- Conexión con Google Sheets exitosa usando variables de entorno. ---")
+        client = gspread.service_account(filename="google_credentials.json")
+        print("--- Conexión con Google Sheets (vía archivo) exitosa. ---")
         return client
-    except json.JSONDecodeError:
-        print("--- ERROR CRÍTICO: El contenido de 'GSPREAD_CREDENTIALS_JSON' no es un JSON válido. ---")
-        return None
     except Exception as e:
         print(f"--- ERROR CRÍTICO al conectar con Google Sheets: {e} ---")
+        print("--- Asegúrate de que 'google_credentials.json' está en la carpeta raíz y es correcto. ---")
         return None
 
 def gspread_append_row(sheet_name: str, data: dict):
