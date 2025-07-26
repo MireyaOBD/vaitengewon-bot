@@ -1835,7 +1835,7 @@ def run_esencia_block(user_id: str, db_id: str, contexto_inicial: dict):
     # --- Módulo 1: DOLOR ---
     dolor_json = _procesar_modulo(
         user_id, db_id, sheet_name, "Dolor",
-        PROMPT_01_DOLOR, contexto_acumulado, "ESENCIA"
+        PROMPT_01_PAIN, contexto_acumulado, "ESENCIA"
     )
     if not dolor_json: return False
     contexto_acumulado["sintesis_diagnostico_dolor"] = dolor_json.get("diagnostico_dolor", {}).get("sintesis_diagnostico_clinico", "")
@@ -1843,7 +1843,7 @@ def run_esencia_block(user_id: str, db_id: str, contexto_inicial: dict):
     # --- Módulo 2: PROPÓSITO ---
     proposito_json = _procesar_modulo(
         user_id, db_id, sheet_name, "Propósito",
-        PROMPT_02_PROPOSITO, contexto_acumulado, "ESENCIA"
+        PROMPT_02_PURPOSE, contexto_acumulado, "ESENCIA"
     )
     if not proposito_json: return False
     contexto_acumulado["declaracion_proposito"] = proposito_json.get("analisis_proposito", {}).get("declaracion_proposito", "")
@@ -1851,7 +1851,7 @@ def run_esencia_block(user_id: str, db_id: str, contexto_inicial: dict):
     # --- Módulo 3: MISIÓN ---
     mision_json = _procesar_modulo(
         user_id, db_id, sheet_name, "Misión",
-        PROMPT_03_MISION, contexto_acumulado, "ESENCIA"
+        PROMPT_03_MISSION, contexto_acumulado, "ESENCIA"
     )
     if not mision_json: return False
     contexto_acumulado["declaracion_mision"] = mision_json.get("definicion_mision", {}).get("declaracion_mision_completa", "")
@@ -1867,7 +1867,7 @@ def run_esencia_block(user_id: str, db_id: str, contexto_inicial: dict):
     # --- Módulo 5: VALORES ---
     valores_json = _procesar_modulo(
         user_id, db_id, sheet_name, "Valores",
-        PROMPT_05_VALORES, contexto_acumulado, "ESENCIA"
+        PROMPT_05_VALUES, contexto_acumulado, "ESENCIA"
     )
     if not valores_json: return False
     valores_finales = valores_json.get("definicion_valores_empresa", {}).get("valores_fundamentales", [])
@@ -1897,56 +1897,56 @@ def run_business_model_block(user_id: str, db_id: str, contexto_inicial: dict):
     services.gspread_append_row(sheet_name, {"UserID": user_id})
 
     # --- Módulo 6 y 7: CLIENTE (P1 y P2) ---
-    cliente_p1_json = _procesar_modulo(user_id, db_id, sheet_name, "Cliente P1 (Segmentación)", PROMPT_06_CLIENTE_P1, contexto_acumulado, "MODELO DE NEGOCIO")
+    cliente_p1_json = _procesar_modulo(user_id, db_id, sheet_name, "Cliente P1 (Segmentación)", PROMPT_06_SEGMENTATION, contexto_acumulado, "MODELO DE NEGOCIO")
     if not cliente_p1_json: return False
     contexto_acumulado["segmentacion_clientes_json"] = json.dumps(cliente_p1_json)
 
-    cliente_p2_json = _procesar_modulo(user_id, db_id, sheet_name, "Cliente P2 (Arquetipo)", PROMPT_07_CLIENTE_P2, contexto_acumulado, "MODELO DE NEGOCIO")
+    cliente_p2_json = _procesar_modulo(user_id, db_id, sheet_name, "Cliente P2 (Arquetipo)", PROMPT_07_CUSTOMER_ARCHETYPE, contexto_acumulado, "MODELO DE NEGOCIO")
     if not cliente_p2_json: return False
     contexto_acumulado["analisis_cliente_json"] = json.dumps(cliente_p2_json)
 
     # --- Módulo 8: PROPUESTA DE VALOR ---
-    prop_valor_json = _procesar_modulo(user_id, db_id, sheet_name, "Propuesta de Valor", PROMPT_08_PROPUESTA_VALOR, contexto_acumulado, "MODELO DE NEGOCIO")
+    prop_valor_json = _procesar_modulo(user_id, db_id, sheet_name, "Propuesta de Valor", PROMPT_08_VALUE_PROPOSITION, contexto_acumulado, "MODELO DE NEGOCIO")
     if not prop_valor_json: return False
     contexto_acumulado["propuesta_valor_json"] = json.dumps(prop_valor_json)
 
     # --- Módulo 9: FUENTES DE INGRESOS ---
-    ingresos_json = _procesar_modulo(user_id, db_id, sheet_name, "Fuentes de Ingresos", PROMPT_09_FUENTES_INGRESOS, contexto_acumulado, "MODELO DE NEGOCIO")
+    ingresos_json = _procesar_modulo(user_id, db_id, sheet_name, "Fuentes de Ingresos", PROMPT_09_SOURCES_OF_INCOME, contexto_acumulado, "MODELO DE NEGOCIO")
     if not ingresos_json: return False
     contexto_acumulado["fuentes_ingresos_json"] = json.dumps(ingresos_json)
     
     # --- Módulo 10: INNOVACIÓN ---
-    innovacion_json = _procesar_modulo(user_id, db_id, sheet_name, "Innovación", PROMPT_10_INNOVACION, contexto_acumulado, "MODELO DE NEGOCIO")
+    innovacion_json = _procesar_modulo(user_id, db_id, sheet_name, "Innovación", PROMPT_10_INNOVATION, contexto_acumulado, "MODELO DE NEGOCIO")
     if not innovacion_json: return False
     contexto_acumulado["esencia_json"] = json.dumps(contexto_acumulado) # Asumo que el prompt de innovación necesita la esencia
 
     # --- Módulo 11: CANALES ---
-    canales_json = _procesar_modulo(user_id, db_id, sheet_name, "Canales", PROMPT_11_CANALES, contexto_acumulado, "MODELO DE NEGOCIO")
+    canales_json = _procesar_modulo(user_id, db_id, sheet_name, "Canales", PROMPT_11_CHANNELS, contexto_acumulado, "MODELO DE NEGOCIO")
     if not canales_json: return False
     contexto_acumulado["canales_json"] = json.dumps(canales_json)
     
     # --- Módulo 12: RELACIONES CON CLIENTES ---
-    relaciones_json = _procesar_modulo(user_id, db_id, sheet_name, "Relaciones con Clientes", PROMPT_12_RELACIONES_CLIENTES, contexto_acumulado, "MODELO DE NEGOCIO")
+    relaciones_json = _procesar_modulo(user_id, db_id, sheet_name, "Relaciones con Clientes", PROMPT_12_CUSTOMER_RELATIONS, contexto_acumulado, "MODELO DE NEGOCIO")
     if not relaciones_json: return False
     contexto_acumulado["relaciones_cliente_json"] = json.dumps(relaciones_json)
 
     # --- Módulo 13: ALIANZAS CLAVE ---
-    alianzas_json = _procesar_modulo(user_id, db_id, sheet_name, "Alianzas Clave", PROMPT_13_ALIANZAS_CLAVE, contexto_acumulado, "MODELO DE NEGOCIO")
+    alianzas_json = _procesar_modulo(user_id, db_id, sheet_name, "Alianzas Clave", PROMPT_13_KEY_ALLIANCES, contexto_acumulado, "MODELO DE NEGOCIO")
     if not alianzas_json: return False
     contexto_acumulado["alianzas_clave_json"] = json.dumps(alianzas_json)
     
     # --- Módulo 14: ACTIVIDADES CLAVE ---
-    actividades_json = _procesar_modulo(user_id, db_id, sheet_name, "Actividades Clave", PROMPT_14_ACTIVIDADES_CLAVE, contexto_acumulado, "MODELO DE NEGOCIO")
+    actividades_json = _procesar_modulo(user_id, db_id, sheet_name, "Actividades Clave", PROMPT_14_KEY_ACTIVITIES, contexto_acumulado, "MODELO DE NEGOCIO")
     if not actividades_json: return False
     contexto_acumulado["actividades_clave_json"] = json.dumps(actividades_json)
 
     # --- Módulo 15: RECURSOS CLAVE ---
-    recursos_json = _procesar_modulo(user_id, db_id, sheet_name, "Recursos Clave", PROMPT_15_RECURSOS_CLAVE, contexto_acumulado, "MODELO DE NEGOCIO")
+    recursos_json = _procesar_modulo(user_id, db_id, sheet_name, "Recursos Clave", PROMPT_15_KEY_RESOURCES, contexto_acumulado, "MODELO DE NEGOCIO")
     if not recursos_json: return False
     # Este no parece generar contexto para los siguientes, pero lo procesamos igual.
 
     # --- Módulo 16: ESTRUCTURA DE COSTES ---
-    costes_json = _procesar_modulo(user_id, db_id, sheet_name, "Estructura de Costes", PROMPT_16_ESTRUCTURA_COSTES, contexto_acumulado, "MODELO DE NEGOCIO")
+    costes_json = _procesar_modulo(user_id, db_id, sheet_name, "Estructura de Costes", PROMPT_16_COST_STRUCTURE, contexto_acumulado, "MODELO DE NEGOCIO")
     if not costes_json: return False
     # Este tampoco parece generar contexto.
 
@@ -1956,12 +1956,12 @@ def run_business_model_block(user_id: str, db_id: str, contexto_inicial: dict):
     # Este tampoco parece generar contexto.
 
     # --- Módulo 18: COMPETENCIA ---
-    competencia_json = _procesar_modulo(user_id, db_id, sheet_name, "Competencia", PROMPT_18_COMPETENCIA, contexto_acumulado, "MODELO DE NEGOCIO")
+    competencia_json = _procesar_modulo(user_id, db_id, sheet_name, "Competencia", PROMPT_18_COMPETITION_ANALYSIS, contexto_acumulado, "MODELO DE NEGOCIO")
     if not competencia_json: return False
     contexto_acumulado["analisis_competitivo_json"] = json.dumps(competencia_json)
 
     # --- Módulo 19: DIFERENCIADOR ---
-    diferenciador_json = _procesar_modulo(user_id, db_id, sheet_name, "Diferenciador", PROMPT_19_DIFERENCIADOR, contexto_acumulado, "MODELO DE NEGOCIO")
+    diferenciador_json = _procesar_modulo(user_id, db_id, sheet_name, "Diferenciador", PROMPT_19_DIFERENTIATION_STRATEGY, contexto_acumulado, "MODELO DE NEGOCIO")
     if not diferenciador_json: return False
     contexto_acumulado["diferenciador_json"] = json.dumps(diferenciador_json)
 
@@ -1988,7 +1988,7 @@ def run_mvp_block(user_id: str, db_id: str, contexto_inicial: dict):
     services.gspread_append_row(sheet_name, {"UserID": user_id})
 
     # --- Módulo 20: HIPÓTESIS ---
-    hipotesis_json = _procesar_modulo(user_id, db_id, sheet_name, "Hipótesis de Negocio", PROMPT_20_HIPOTESIS, contexto_acumulado, "PROYECTO")
+    hipotesis_json = _procesar_modulo(user_id, db_id, sheet_name, "Hipótesis de Negocio", PROMPT_20_HYPOTHESIS, contexto_acumulado, "PROYECTO")
     if not hipotesis_json: return False
     contexto_acumulado["hipotesis_de_negocio_json"] = json.dumps(hipotesis_json)
 
@@ -1998,17 +1998,17 @@ def run_mvp_block(user_id: str, db_id: str, contexto_inicial: dict):
     contexto_acumulado["definicion_mvp_json"] = json.dumps(mvp_json)
 
     # --- Módulo 22: LANZAMIENTO ---
-    lanzamiento_json = _procesar_modulo(user_id, db_id, sheet_name, "Estrategia de Lanzamiento", PROMPT_22_LANZAMIENTO, contexto_acumulado, "PROYECTO")
+    lanzamiento_json = _procesar_modulo(user_id, db_id, sheet_name, "Estrategia de Lanzamiento", PROMPT_22_LAUNCH_STRATEGY, contexto_acumulado, "PROYECTO")
     if not lanzamiento_json: return False
     contexto_acumulado["estrategia_de_lanzamiento_mvp_json"] = json.dumps(lanzamiento_json)
     
     # --- Módulo 23: PLAN DE ACCIÓN ---
-    plan_accion_json = _procesar_modulo(user_id, db_id, sheet_name, "Plan de Acción", PROMPT_23_PLAN_ACCION, contexto_acumulado, "PROYECTO")
+    plan_accion_json = _procesar_modulo(user_id, db_id, sheet_name, "Plan de Acción", PROMPT_23_PLAN_ACTION, contexto_acumulado, "PROYECTO")
     if not plan_accion_json: return False
     contexto_acumulado["plan_de_accion_exhaustivo_json"] = json.dumps(plan_accion_json)
 
     # --- Módulo 24: COSTOS DEL MVP ---
-    costos_mvp_json = _procesar_modulo(user_id, db_id, sheet_name, "Costos del MVP", PROMPT_24_COSTOS_MVP, contexto_acumulado, "PROYECTO")
+    costos_mvp_json = _procesar_modulo(user_id, db_id, sheet_name, "Costos del MVP", PROMPT_24_MVP_COSTS, contexto_acumulado, "PROYECTO")
     if not costos_mvp_json: return False
     
     # --- PASO FINAL DEL BLOQUE: Actualizar columnas de estado ---
