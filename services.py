@@ -234,44 +234,31 @@ def send_email(to_address: str, subject: str, html_body: str):
     except Exception as e:
         print(f"--- ERROR AL ENVIAR EMAIL: {e} ---")
         return False
-    # En services.py, añade esta nueva función al final
 
-def notion_append_to_page(page_id: str, markdown_content: str):
-    """Añade bloques de contenido Markdown al final de una página de Notion existente."""
+# En services.py, reemplaza tu función actual por esta:
+
+def notion_append_to_page(page_id: str, blocks: list):
+    """
+    Añade una lista de bloques de contenido al final de una página de Notion existente.
+    """
+    if not blocks:
+        print(f"--- ADVERTENCIA: No hay bloques para añadir a la página {page_id}. ---")
+        return True
+
     NOTION_API_KEY = os.getenv("NOTION_API_KEY")
     url = f"https://api.notion.com/v1/blocks/{page_id}/children"
     headers = {"Authorization": f"Bearer {NOTION_API_KEY}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
 
-    MAX_LENGTH = 2000
-    # Dividimos el contenido en trozos de 2000 caracteres, respetando los párrafos.
-    chunks = []
-    current_chunk = ""
-    for paragraph in markdown_content.split('\n\n'):
-        if len(current_chunk) + len(paragraph) + 2 > MAX_LENGTH:
-            chunks.append(current_chunk)
-            current_chunk = paragraph
-        else:
-            current_chunk += "\n\n" + paragraph
-    chunks.append(current_chunk.strip())
-
-    blocks = []
-    for chunk in chunks:
-        if chunk: # Asegurarse de no enviar chunks vacíos
-            blocks.append({
-                "object": "block",
-                "type": "paragraph",
-                "paragraph": {"rich_text": [{"type": "text", "text": {"content": chunk}}]}
-            })
-
-    # Dividimos el envío en lotes de 100 bloques (límite de la API de Notion)
     for i in range(0, len(blocks), 100):
         batch = blocks[i:i+100]
         payload = {"children": batch}
         try:
             response = requests.patch(url, headers=headers, json=payload)
             response.raise_for_status()
-            print(f"--- Bloque de contenido añadido exitosamente a la página {page_id}. ---")
+            print(f"--- Lote de {len(batch)} bloques añadido exitosamente a la página {page_id}. ---")
         except requests.exceptions.RequestException as e:
-            print(f"--- ERROR al añadir bloque a página de Notion '{page_id}' ---\nError: {e}\nRespuesta: {response.text if 'response' in locals() else 'N/A'}")
+            error_details = response.json() if 'response' in locals() and response.headers.get('Content-Type') == 'application/json' else response.text
+            print(f"--- ERROR al añadir bloque a página de Notion '{page_id}' ---\nError: {e}\nRespuesta: {error_details}")
             return False
+        time.sleep(0.5)
     return True

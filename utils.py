@@ -61,3 +61,59 @@ def json_to_markdown(data_input):
         print(f"--- ERROR Inesperado al convertir JSON a Markdown: {e} ---")
         # Como plan B, si algo falla, devolvemos el JSON formateado para no perder la información
         return json.dumps(data_input, indent=2, ensure_ascii=False)
+    
+    # ==============================================================================
+# ¡NUEVA FUNCIÓN! - AÑADE ESTO A TU ARCHIVO UTILS.PY
+# ==============================================================================
+def markdown_to_notion_blocks(markdown_text):
+    """
+    Convierte un string de texto en formato Markdown simple
+    a una lista de bloques compatibles con la API de Notion.
+    """
+    blocks = []
+    # Dividimos el texto en líneas para procesar cada una
+    for line in markdown_text.strip().split('\n'):
+        stripped_line = line.strip()
+        if not stripped_line:
+            continue
+
+        if stripped_line.startswith('## '):
+            blocks.append({
+                "object": "block",
+                "type": "heading_2",
+                "heading_2": {
+                    "rich_text": [{"type": "text", "text": {"content": stripped_line.replace('## ', '')}}]
+                }
+            })
+        elif stripped_line.startswith('### '):
+            blocks.append({
+                "object": "block",
+                "type": "heading_3",
+                "heading_3": {
+                    "rich_text": [{"type": "text", "text": {"content": stripped_line.replace('### ', '')}}]
+                }
+            })
+        elif stripped_line == '---':
+            blocks.append({
+                "object": "block",
+                "type": "divider",
+                "divider": {}
+            })
+        elif stripped_line.startswith('- '):
+             blocks.append({
+                "object": "block",
+                "type": "bulleted_list_item",
+                "bulleted_list_item": {
+                    "rich_text": [{"type": "text", "text": {"content": stripped_line.replace('- ', '')}}]
+                }
+            })
+        else:
+            # Cualquier otra línea se trata como un párrafo
+            blocks.append({
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {
+                    "rich_text": [{"type": "text", "text": {"content": stripped_line}}]
+                }
+            })
+    return blocks

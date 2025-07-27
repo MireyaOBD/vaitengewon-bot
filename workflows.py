@@ -1759,7 +1759,7 @@ PROMPT_24_MVP_COSTS = """ {
 """
 
 # ==============================================================================
-# 3. FUNCIÓN AUXILIAR REUTILIZABLE (VERSIÓN FINAL)
+# 3. FUNCIÓN AUXILIAR REUTILIZABLE 
 # ==============================================================================
 def _procesar_modulo(user_id: str, db_id: str, sheet_name: str, modulo_name: str,
                        prompt_extenso: str, contexto: dict, notion_index: str):
@@ -1769,7 +1769,9 @@ def _procesar_modulo(user_id: str, db_id: str, sheet_name: str, modulo_name: str
     prompt_formateado = prompt_extenso
     for clave, valor in contexto.items():
         placeholder = "{{" + clave + "}}"
-        prompt_formateado = prompt_formateado.replace(placeholder, str(valor))
+        valor_str = str(valor).replace('"', '\\"')
+        prompt_formateado = prompt_formateado.replace(placeholder, valor_str)
+    
     contenido_extenso_json = services.openai_generate_text(prompt_formateado, response_format="json_object")
     if not contenido_extenso_json:
         return None
@@ -1788,12 +1790,17 @@ def _procesar_modulo(user_id: str, db_id: str, sheet_name: str, modulo_name: str
         return None
     page_id = page_response.get("id")
 
-    # 4. Enviar a Notion solo el contenido de "output"
+    # 4. Enviar a Notion contenido formateado
     output_content = contenido_extenso_json.get("output")
     if output_content:
+        # 1. Convertir JSON a string Markdown (usando tu función existente)
         contenido_markdown = utils.json_to_markdown(output_content)
-        if not services.notion_append_to_page(page_id, contenido_markdown):
-            print(f"[{user_id}] - ⚠️ ADVERTENCIA: Falla al añadir contenido a la página de Notion.")
+        # 2. Convertir string Markdown a lista de bloques de Notion (usando la nueva función)
+        bloques_notion = utils.markdown_to_notion_blocks(contenido_markdown)
+        
+        # 3. Enviar los bloques a Notion
+        if not services.notion_append_to_page(page_id, bloques_notion):
+            print(f"[{user_id}] - ⚠️ ADVERTENCIA: Falla al añadir bloques a la página de Notion.")
     else:
         print(f"[{user_id}] - ⚠️ ADVERTENCIA: La clave 'output' estaba vacía en el JSON de '{modulo_name}'.")
 
