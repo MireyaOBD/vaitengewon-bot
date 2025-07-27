@@ -217,7 +217,7 @@ def send_email(to_address: str, subject: str, html_body: str):
     
     msg = MIMEMultipart('alternative')
     msg['Subject'] = subject
-    msg['From'] = smtp_user
+    msg['From'] = f"Vaitengewon Club <{smtp_user}>"
     msg['To'] = to_address
     part = MIMEText(html_body, 'html')
     msg.attach(part)

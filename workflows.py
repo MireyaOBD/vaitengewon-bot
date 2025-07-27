@@ -7,6 +7,7 @@ import services
 import json
 from datetime import datetime
 import utils
+import time
 
 # ==============================================================================
 # 2. SECCIÓN DE PROMPTS
@@ -1758,289 +1759,186 @@ PROMPT_24_MVP_COSTS = """ {
 """
 
 # ==============================================================================
-# 3. FUNCIÓN AUXILIAR REUTILIZABLE
+# 3. FUNCIÓN AUXILIAR REUTILIZABLE (VERSIÓN FINAL)
 # ==============================================================================
 def _procesar_modulo(user_id: str, db_id: str, sheet_name: str, modulo_name: str,
                        prompt_extenso: str, contexto: dict, notion_index: str):
-    """
-    Flujo inteligente: Genera JSON, guarda en Sheets, y envía a Notion por secciones.
-    """
     print(f"[{user_id}] - ...Procesando Módulo: {modulo_name}...")
     
-    # 1. Generar contenido extenso (JSON)
-    # --- INICIO DEL CÓDIGO DE REEMPLAZO ---
-
-    # Creamos una copia del prompt para no modificar el original
+    # 1. Generar JSON
     prompt_formateado = prompt_extenso
-
-    # Iteramos sobre el contexto y reemplazamos cada variable de forma segura
     for clave, valor in contexto.items():
         placeholder = "{{" + clave + "}}"
         prompt_formateado = prompt_formateado.replace(placeholder, str(valor))
-        
     contenido_extenso_json = services.openai_generate_text(prompt_formateado, response_format="json_object")
-
-    # --- FIN DEL CÓDIGO DE REEMPLAZO ---
     if not contenido_extenso_json:
-        print(f"[{user_id}] - ❌ DETENIDO: No se pudo generar contenido JSON para '{modulo_name}'.")
         return None
-    print(f"[{user_id}] -     ...Contenido JSON completo generado.")
-    
-    # 2. Guardar en Google Sheets (versión completa)
+
+    # 2. Guardar el JSON completo en Google Sheets
     contenido_completo_str = json.dumps(contenido_extenso_json, ensure_ascii=False, indent=2)
     if not services.gspread_update_row(sheet_name, user_id, {modulo_name: contenido_completo_str}):
-        print(f"[{user_id}] - ❌ DETENIDO: No se pudo guardar el contenido de '{modulo_name}' en Google Sheets.")
+        print(f"[{user_id}] - ❌ DETENIDO: Falla al guardar JSON en Google Sheets para '{modulo_name}'.")
         return None
     print(f"[{user_id}] -     ...Contenido completo guardado en Google Sheets.")
 
-    # 3. Crear página maestra en Notion
+    # 3. Crear página de Notion
     page_response = services.notion_create_page(db_id, modulo_name, "", notion_index)
     if not page_response or "id" not in page_response:
-        print(f"[{user_id}] - ❌ DETENIDO: No se pudo crear la página maestra de Notion para '{modulo_name}'.")
+        print(f"[{user_id}] - ❌ DETENIDO: Falla al crear la página de Notion para '{modulo_name}'.")
         return None
     page_id = page_response.get("id")
-    print(f"[{user_id}] -     ...Página maestra de Notion para '{modulo_name}' creada (ID: {page_id}).")
 
-    # 4. Iterar, convertir y enviar cada sección a Notion
-    # Asumimos que el JSON útil está dentro de la primera y única clave
-    if len(contenido_extenso_json.keys()) == 1:
-        data_sections = list(contenido_extenso_json.values())[0]
+    # 4. Enviar a Notion solo el contenido de "output"
+    output_content = contenido_extenso_json.get("output")
+    if output_content:
+        contenido_markdown = utils.json_to_markdown(output_content)
+        if not services.notion_append_to_page(page_id, contenido_markdown):
+            print(f"[{user_id}] - ⚠️ ADVERTENCIA: Falla al añadir contenido a la página de Notion.")
     else:
-        data_sections = contenido_extenso_json
+        print(f"[{user_id}] - ⚠️ ADVERTENCIA: La clave 'output' estaba vacía en el JSON de '{modulo_name}'.")
 
-    for section_title, section_content in data_sections.items():
-        print(f"[{user_id}] -         ...Enviando sección a Notion: '{section_title}'")
-        markdown_section = utils.json_to_markdown({section_title: section_content})
-        
-        if not services.notion_append_to_page(page_id, markdown_section):
-            print(f"[{user_id}] - ⚠️ ADVERTENCIA: No se pudo añadir la sección '{section_title}' a la página de Notion.")
-            
-    print(f"[{user_id}] - ✅ Módulo '{modulo_name}' completado con éxito.")
+    print(f"[{user_id}] - ✅ Módulo '{modulo_name}' completado.")
+    time.sleep(1) 
     return contenido_extenso_json
-
 # ==============================================================================
-# 4. FUNCIONES DE BLOQUE
+# 4. FUNCIONES DE BLOQUE (VERSIÓN FINAL)
 # ==============================================================================
-
-# En workflows.py, reemplaza esta función
 
 def run_esencia_block(user_id: str, db_id: str, contexto_inicial: dict):
     print(f"[{user_id}] - ✅ Iniciando Bloque ESENCIA (5 módulos).")
-    
     contexto_acumulado = contexto_inicial.copy()
     sheet_name = "ESENCIA"
-    
     services.gspread_append_row(sheet_name, {"UserID": user_id})
 
-    # --- Módulo 1: DOLOR ---
-    dolor_json = _procesar_modulo(
-        user_id, db_id, sheet_name, "Dolor",
-        PROMPT_01_PAIN, contexto_acumulado, "ESENCIA"
-    )
+    dolor_json = _procesar_modulo(user_id, db_id, sheet_name, "Dolor", PROMPT_01_PAIN, contexto_acumulado, "ESENCIA")
     if not dolor_json: return False
-    contexto_acumulado["sintesis_diagnostico_dolor"] = dolor_json.get("diagnostico_dolor", {}).get("sintesis_diagnostico_clinico", "")
+    contexto_acumulado["sintesis_diagnostico_dolor"] = dolor_json.get("output", {}).get("diagnostico_dolor", {}).get("sintesis_diagnostico_clinico", "")
 
-    # --- Módulo 2: PROPÓSITO ---
-    proposito_json = _procesar_modulo(
-        user_id, db_id, sheet_name, "Propósito",
-        PROMPT_02_PURPOSE, contexto_acumulado, "ESENCIA"
-    )
+    proposito_json = _procesar_modulo(user_id, db_id, sheet_name, "Propósito", PROMPT_02_PURPOSE, contexto_acumulado, "ESENCIA")
     if not proposito_json: return False
-    contexto_acumulado["declaracion_proposito"] = proposito_json.get("analisis_proposito", {}).get("declaracion_proposito", "")
+    contexto_acumulado["declaracion_proposito"] = proposito_json.get("output", {}).get("analisis_proposito", {}).get("declaracion_proposito", "")
 
-    # --- Módulo 3: MISIÓN ---
-    mision_json = _procesar_modulo(
-        user_id, db_id, sheet_name, "Misión",
-        PROMPT_03_MISSION, contexto_acumulado, "ESENCIA"
-    )
+    mision_json = _procesar_modulo(user_id, db_id, sheet_name, "Misión", PROMPT_03_MISSION, contexto_acumulado, "ESENCIA")
     if not mision_json: return False
-    contexto_acumulado["declaracion_mision"] = mision_json.get("definicion_mision", {}).get("declaracion_mision_completa", "")
+    contexto_acumulado["declaracion_mision"] = mision_json.get("output", {}).get("definicion_mision", {}).get("declaracion_mision_completa", "")
 
-    # --- Módulo 4: VISIÓN ---
-    vision_json = _procesar_modulo(
-        user_id, db_id, sheet_name, "Visión",
-        PROMPT_04_VISION, contexto_acumulado, "ESENCIA"
-    )
+    vision_json = _procesar_modulo(user_id, db_id, sheet_name, "Visión", PROMPT_04_VISION, contexto_acumulado, "ESENCIA")
     if not vision_json: return False
-    contexto_acumulado["declaracion_vision"] = vision_json.get("definicion_vision", {}).get("declaracion_vision_final", "")
+    contexto_acumulado["declaracion_vision"] = vision_json.get("output", {}).get("definicion_vision", {}).get("declaracion_vision_final", "")
 
-    # --- Módulo 5: VALORES ---
-    valores_json = _procesar_modulo(
-        user_id, db_id, sheet_name, "Valores",
-        PROMPT_05_VALUES, contexto_acumulado, "ESENCIA"
-    )
+    valores_json = _procesar_modulo(user_id, db_id, sheet_name, "Valores", PROMPT_05_VALUES, contexto_acumulado, "ESENCIA")
     if not valores_json: return False
-    valores_finales = valores_json.get("definicion_valores_empresa", {}).get("valores_fundamentales", [])
+    valores_finales = valores_json.get("output", {}).get("definicion_valores_empresa", {}).get("valores_fundamentales", [])
     contexto_acumulado["valores_empresa"] = json.dumps(valores_finales)
     
-    # --- PASO FINAL DEL BLOQUE: Actualizar columnas de estado ---
-    print(f"[{user_id}] - ...Actualizando estado final del bloque ESENCIA en Google Sheets...")
-    estado_final_data = {
-        "LastUpdate": datetime.now().isoformat(),
-        "Status_Esencia": "Completed"
-    }
-    if not services.gspread_update_row(sheet_name, user_id, estado_final_data):
-        print(f"[{user_id}] - ⚠️ ADVERTENCIA: No se pudo actualizar el estado final en la hoja '{sheet_name}'.")
-        # No detenemos el flujo, pero lo registramos.
-
+    estado_final_data = {"LastUpdate": datetime.now().isoformat(), "Status_Esencia": "Completed"}
+    services.gspread_update_row(sheet_name, user_id, estado_final_data)
+    
     print(f"[{user_id}] - ✅ Bloque ESENCIA completado exitosamente.")
     return contexto_acumulado
 
-# En workflows.py, reemplaza la función run_business_model_block
-
 def run_business_model_block(user_id: str, db_id: str, contexto_inicial: dict):
     print(f"[{user_id}] - ✅ Iniciando Bloque MODELO DE NEGOCIO (14 módulos).")
-    
     contexto_acumulado = contexto_inicial.copy()
     sheet_name = "MODELO DE NEGOCIO"
-    # Creamos una fila inicial para este usuario en la nueva hoja
     services.gspread_append_row(sheet_name, {"UserID": user_id})
 
-    # --- Módulo 6 y 7: CLIENTE (P1 y P2) ---
     cliente_p1_json = _procesar_modulo(user_id, db_id, sheet_name, "Cliente P1 (Segmentación)", PROMPT_06_SEGMENTATION, contexto_acumulado, "MODELO DE NEGOCIO")
     if not cliente_p1_json: return False
-    contexto_acumulado["segmentacion_clientes_json"] = json.dumps(cliente_p1_json)
+    contexto_acumulado["segmentacion_clientes_json"] = json.dumps(cliente_p1_json.get("output"))
 
     cliente_p2_json = _procesar_modulo(user_id, db_id, sheet_name, "Cliente P2 (Arquetipo)", PROMPT_07_CUSTOMER_ARCHETYPE, contexto_acumulado, "MODELO DE NEGOCIO")
     if not cliente_p2_json: return False
-    contexto_acumulado["analisis_cliente_json"] = json.dumps(cliente_p2_json)
+    contexto_acumulado["analisis_cliente_json"] = json.dumps(cliente_p2_json.get("output"))
 
-    # --- Módulo 8: PROPUESTA DE VALOR ---
     prop_valor_json = _procesar_modulo(user_id, db_id, sheet_name, "Propuesta de Valor", PROMPT_08_VALUE_PROPOSITION, contexto_acumulado, "MODELO DE NEGOCIO")
     if not prop_valor_json: return False
-    contexto_acumulado["propuesta_valor_json"] = json.dumps(prop_valor_json)
+    contexto_acumulado["propuesta_valor_json"] = json.dumps(prop_valor_json.get("output"))
 
-    # --- Módulo 9: FUENTES DE INGRESOS ---
     ingresos_json = _procesar_modulo(user_id, db_id, sheet_name, "Fuentes de Ingresos", PROMPT_09_SOURCES_OF_INCOME, contexto_acumulado, "MODELO DE NEGOCIO")
     if not ingresos_json: return False
-    contexto_acumulado["fuentes_ingresos_json"] = json.dumps(ingresos_json)
+    contexto_acumulado["fuentes_ingresos_json"] = json.dumps(ingresos_json.get("output"))
     
-    # --- Módulo 10: INNOVACIÓN ---
     innovacion_json = _procesar_modulo(user_id, db_id, sheet_name, "Innovación", PROMPT_10_INNOVATION, contexto_acumulado, "MODELO DE NEGOCIO")
     if not innovacion_json: return False
-    contexto_acumulado["esencia_json"] = json.dumps(contexto_acumulado) # Asumo que el prompt de innovación necesita la esencia
+    contexto_acumulado["esencia_json"] = json.dumps(contexto_acumulado)
 
-    # --- Módulo 11: CANALES ---
     canales_json = _procesar_modulo(user_id, db_id, sheet_name, "Canales", PROMPT_11_CHANNELS, contexto_acumulado, "MODELO DE NEGOCIO")
     if not canales_json: return False
-    contexto_acumulado["canales_json"] = json.dumps(canales_json)
+    contexto_acumulado["canales_json"] = json.dumps(canales_json.get("output"))
     
-    # --- Módulo 12: RELACIONES CON CLIENTES ---
     relaciones_json = _procesar_modulo(user_id, db_id, sheet_name, "Relaciones con Clientes", PROMPT_12_CUSTOMER_RELATIONS, contexto_acumulado, "MODELO DE NEGOCIO")
     if not relaciones_json: return False
-    contexto_acumulado["relaciones_cliente_json"] = json.dumps(relaciones_json)
+    contexto_acumulado["relaciones_cliente_json"] = json.dumps(relaciones_json.get("output"))
 
-    # --- Módulo 13: ALIANZAS CLAVE ---
     alianzas_json = _procesar_modulo(user_id, db_id, sheet_name, "Alianzas Clave", PROMPT_13_KEY_ALLIANCES, contexto_acumulado, "MODELO DE NEGOCIO")
     if not alianzas_json: return False
-    contexto_acumulado["alianzas_clave_json"] = json.dumps(alianzas_json)
+    contexto_acumulado["alianzas_clave_json"] = json.dumps(alianzas_json.get("output"))
     
-    # --- Módulo 14: ACTIVIDADES CLAVE ---
     actividades_json = _procesar_modulo(user_id, db_id, sheet_name, "Actividades Clave", PROMPT_14_KEY_ACTIVITIES, contexto_acumulado, "MODELO DE NEGOCIO")
     if not actividades_json: return False
-    contexto_acumulado["actividades_clave_json"] = json.dumps(actividades_json)
+    contexto_acumulado["actividades_clave_json"] = json.dumps(actividades_json.get("output"))
 
-    # --- Módulo 15: RECURSOS CLAVE ---
-    recursos_json = _procesar_modulo(user_id, db_id, sheet_name, "Recursos Clave", PROMPT_15_KEY_RESOURCES, contexto_acumulado, "MODELO DE NEGOCIO")
-    if not recursos_json: return False
-    # Este no parece generar contexto para los siguientes, pero lo procesamos igual.
+    _procesar_modulo(user_id, db_id, sheet_name, "Recursos Clave", PROMPT_15_KEY_RESOURCES, contexto_acumulado, "MODELO DE NEGOCIO")
+    _procesar_modulo(user_id, db_id, sheet_name, "Estructura de Costes", PROMPT_16_COST_STRUCTURE, contexto_acumulado, "MODELO DE NEGOCIO")
+    _procesar_modulo(user_id, db_id, sheet_name, "Stakeholders", PROMPT_17_STAKEHOLDERS, contexto_acumulado, "MODELO DE NEGOCIO")
 
-    # --- Módulo 16: ESTRUCTURA DE COSTES ---
-    costes_json = _procesar_modulo(user_id, db_id, sheet_name, "Estructura de Costes", PROMPT_16_COST_STRUCTURE, contexto_acumulado, "MODELO DE NEGOCIO")
-    if not costes_json: return False
-    # Este tampoco parece generar contexto.
-
-    # --- Módulo 17: STAKEHOLDERS ---
-    stakeholders_json = _procesar_modulo(user_id, db_id, sheet_name, "Stakeholders", PROMPT_17_STAKEHOLDERS, contexto_acumulado, "MODELO DE NEGOCIO")
-    if not stakeholders_json: return False
-    # Este tampoco parece generar contexto.
-
-    # --- Módulo 18: COMPETENCIA ---
     competencia_json = _procesar_modulo(user_id, db_id, sheet_name, "Competencia", PROMPT_18_COMPETITION_ANALYSIS, contexto_acumulado, "MODELO DE NEGOCIO")
     if not competencia_json: return False
-    contexto_acumulado["analisis_competitivo_json"] = json.dumps(competencia_json)
+    contexto_acumulado["analisis_competitivo_json"] = json.dumps(competencia_json.get("output"))
 
-    # --- Módulo 19: DIFERENCIADOR ---
     diferenciador_json = _procesar_modulo(user_id, db_id, sheet_name, "Diferenciador", PROMPT_19_DIFERENTIATION_STRATEGY, contexto_acumulado, "MODELO DE NEGOCIO")
     if not diferenciador_json: return False
-    contexto_acumulado["diferenciador_json"] = json.dumps(diferenciador_json)
+    contexto_acumulado["diferenciador_json"] = json.dumps(diferenciador_json.get("output"))
 
-    print(f"[{user_id}] - ...Actualizando estado final del bloque MODELO DE NEGOCIO en Google Sheets...")
-    estado_final_data = {
-        "LastUpdate": datetime.now().isoformat(), # <--- AÑADIDO
-        "STATUS_MODELO": "Completed"
-    }
-    if not services.gspread_update_row(sheet_name, user_id, estado_final_data):
-        print(f"[{user_id}] - ⚠️ ADVERTENCIA: No se pudo actualizar el estado final en la hoja '{sheet_name}'.")
+    estado_final_data = {"LastUpdate": datetime.now().isoformat(), "STATUS_MODELO": "Completed"}
+    services.gspread_update_row(sheet_name, user_id, estado_final_data)
 
     print(f"[{user_id}] - ✅ Bloque MODELO DE NEGOCIO completado exitosamente.")
     return contexto_acumulado
-# En workflows.py, reemplaza la función run_mvp_block
-
-# En workflows.py, reemplaza esta función
 
 def run_mvp_block(user_id: str, db_id: str, contexto_inicial: dict):
-    print(f"[{user_id}] - ✅ Iniciando Bloque MVP (5 módulos).") # Son 5 módulos, no 6
-    
+    print(f"[{user_id}] - ✅ Iniciando Bloque MVP (5 módulos).")
     contexto_acumulado = contexto_inicial.copy()
     sheet_name = "MVP"
-    
     services.gspread_append_row(sheet_name, {"UserID": user_id})
 
-    # --- Módulo 20: HIPÓTESIS ---
     hipotesis_json = _procesar_modulo(user_id, db_id, sheet_name, "Hipótesis de Negocio", PROMPT_20_HYPOTHESIS, contexto_acumulado, "PROYECTO")
     if not hipotesis_json: return False
-    contexto_acumulado["hipotesis_de_negocio_json"] = json.dumps(hipotesis_json)
+    contexto_acumulado["hipotesis_de_negocio_json"] = json.dumps(hipotesis_json.get("output"))
 
-    # --- Módulo 21: MVP ---
     mvp_json = _procesar_modulo(user_id, db_id, sheet_name, "Definición del MVP", PROMPT_21_MVP, contexto_acumulado, "PROYECTO")
     if not mvp_json: return False
-    contexto_acumulado["definicion_mvp_json"] = json.dumps(mvp_json)
+    contexto_acumulado["definicion_mvp_json"] = json.dumps(mvp_json.get("output"))
 
-    # --- Módulo 22: LANZAMIENTO ---
     lanzamiento_json = _procesar_modulo(user_id, db_id, sheet_name, "Estrategia de Lanzamiento", PROMPT_22_LAUNCH_STRATEGY, contexto_acumulado, "PROYECTO")
     if not lanzamiento_json: return False
-    contexto_acumulado["estrategia_de_lanzamiento_mvp_json"] = json.dumps(lanzamiento_json)
+    contexto_acumulado["estrategia_de_lanzamiento_mvp_json"] = json.dumps(lanzamiento_json.get("output"))
     
-    # --- Módulo 23: PLAN DE ACCIÓN ---
     plan_accion_json = _procesar_modulo(user_id, db_id, sheet_name, "Plan de Acción", PROMPT_23_PLAN_ACTION, contexto_acumulado, "PROYECTO")
     if not plan_accion_json: return False
-    contexto_acumulado["plan_de_accion_exhaustivo_json"] = json.dumps(plan_accion_json)
+    contexto_acumulado["plan_de_accion_exhaustivo_json"] = json.dumps(plan_accion_json.get("output"))
 
-    # --- Módulo 24: COSTOS DEL MVP ---
-    costos_mvp_json = _procesar_modulo(user_id, db_id, sheet_name, "Costos del MVP", PROMPT_24_MVP_COSTS, contexto_acumulado, "PROYECTO")
-    if not costos_mvp_json: return False
+    _procesar_modulo(user_id, db_id, sheet_name, "Costos del MVP", PROMPT_24_MVP_COSTS, contexto_acumulado, "PROYECTO")
     
-    # --- PASO FINAL DEL BLOQUE: Actualizar columnas de estado ---
-    print(f"[{user_id}] - ...Actualizando estado final del bloque MVP en Google Sheets...")
-    estado_final_data = {
-        "LastUpdate": datetime.now().isoformat(),
-        "Status_PMV": "Completed" # Usando el nombre exacto de tu columna
-    }
-    if not services.gspread_update_row(sheet_name, user_id, estado_final_data):
-        print(f"[{user_id}] - ⚠️ ADVERTENCIA: No se pudo actualizar el estado final en la hoja '{sheet_name}'.")
+    estado_final_data = {"LastUpdate": datetime.now().isoformat(), "Status_PMV": "Completed"}
+    services.gspread_update_row(sheet_name, user_id, estado_final_data)
 
     print(f"[{user_id}] - ✅ Bloque MVP completado exitosamente.")
     return contexto_acumulado
 
-
 # ==============================================================================
 # 5. FUNCIONES DE EMAIL (CON LOGO Y ESTILOS DE MARCA)
 # ==============================================================================
-
-# --- CONFIGURACIÓN DEL LOGO ---
-# ¡¡¡PEGA AQUÍ LA URL DE TU LOGO QUE COPIASTE DE WORDPRESS!!!
-LOGO_URL = "https://drive.google.com/file/d/1YYdLFjzGaKRUB3SecU_9cSIUNnwJhvrH/view?usp=drive_link"
-
-# --- PLANTILLA DE EMAIL FINAL (CON LOGO Y ESTILOS DE MARCA) ---
-EMAIL_BODY_TEMPLATE = f"""
+# --- PLANTILLA DE EMAIL FINAL (CON LOGO DE TEXTO Y ESTILOS DE MARCA) ---
+EMAIL_BODY_TEMPLATE = """
 <div style="font-family: 'Lora', Garamond, serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
-  <div style="background: linear-gradient(45deg, #09CBD9, #7030A0, #FF1895, #FEF100); padding: 25px; text-align: center;">
-    <img src="{LOGO_URL}" alt="Vaitengewon Club Logo" style="max-width: 250px; height: auto;">
+  <div style="background: linear-gradient(45deg, #09CBD9, #7030A0, #FF1895, #FEF100); padding: 30px 20px; text-align: center;">
+    <h1 style="color: #FFFFFF; font-family: 'Ubuntu', Arial, sans-serif; font-size: 28px; font-weight: bold; margin: 0; text-transform: uppercase; letter-spacing: 1px;">VAITENGEWON CLUB</h1>
   </div>
   <div style="padding: 20px 30px;">
     <h2 style="font-family: 'Ubuntu', Arial, sans-serif; color: #7030A0;">¡Tu Vaitengewon Map está casi listo!</h2>
-    <p style="line-height: 1.6;">Hola <strong>{{user_name}}</strong>,</p>
+    <p style="line-height: 1.6;">Hola <strong>{user_name}</strong>,</p>
     <p style="line-height: 1.6;">¡Buenas noticias! Nuestro sistema ha terminado de generar tu <strong>Vaitengewon Map</strong>, el plan estratégico completo para tu negocio.</p>
     <p style="line-height: 1.6;">En un plazo máximo de 24 horas, recibirás un segundo correo (enviado por un miembro de nuestro equipo) con un enlace a tu mapa personalizado en una plantilla de Notion. No te preocupes, ¡usar Notion es completamente gratis y te permitirá editar y adaptar tu plan como quieras!</p>
     <p style="line-height: 1.6;">Ese correo también incluirá el enlace para que puedas agendar tu sesión de asesoría 1 a 1, donde revisaremos juntos la estrategia y resolveremos todas tus dudas.</p>
@@ -2049,38 +1947,39 @@ EMAIL_BODY_TEMPLATE = f"""
     <p style="line-height: 1.6;">Saludos,<br>El equipo de Vaitengewon Club</p>
   </div>
   <div style="background-color: #7030A0; color: white; text-align: center; padding: 15px; font-size: 12px; font-family: 'Ubuntu Mono', monospace;">
-    © {{current_year}} Vaitengewon Club. Todos los derechos reservados.
+    © {current_year} Vaitengewon Club. Todos los derechos reservados.
   </div>
 </div>
 """
 
-# --- PLANTILLA DE EMAIL DE CONFIRMACIÓN DE RESPUESTAS (CON LOGO Y ESTILOS DE MARCA) ---
-EMAIL_ANSWERS_CONFIRMATION_TEMPLATE = f"""
+# --- PLANTILLA DE EMAIL DE CONFIRMACIÓN DE RESPUESTAS (CON LOGO DE TEXTO Y ESTILOS DE MARCA) ---
+EMAIL_ANSWERS_CONFIRMATION_TEMPLATE = """
 <div style="font-family: 'Lora', Garamond, serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
-  <div style="background: linear-gradient(45deg, #09CBD9, #7030A0, #FF1895, #FEF100); padding: 25px; text-align: center;">
-    <img src="{LOGO_URL}" alt="Vaitengewon Club Logo" style="max-width: 250px; height: auto;">
+  <div style="background: linear-gradient(45deg, #09CBD9, #7030A0, #FF1895, #FEF100); padding: 30px 20px; text-align: center;">
+    <h1 style="color: #FFFFFF; font-family: 'Ubuntu', Arial, sans-serif; font-size: 28px; font-weight: bold; margin: 0; text-transform: uppercase; letter-spacing: 1px;">VAITENGEWON CLUB</h1>
   </div>
   <div style="padding: 20px 30px;">
     <h2 style="font-family: 'Ubuntu', Arial, sans-serif; color: #7030A0;">Hemos recibido tus respuestas</h2>
-    <p style="line-height: 1.6;">Hola <strong>{{user_name}}</strong>,</p>
+    <p style="line-height: 1.6;">Hola <strong>{user_name}</strong>,</p>
     <p style="line-height: 1.6;">¡Gracias por completar el primer paso! Hemos recibido tu información y nuestro sistema ya ha comenzado a trabajar en tu <strong>Vaitengewon Map</strong>.</p>
     <p style="line-height: 1.6;">Para tu referencia, aquí tienes un resumen de las respuestas que nos proporcionaste:</p>
     <div style="background-color: #f9f9f9; border-left: 5px solid #7030A0; padding: 15px; margin: 20px 0; font-family: 'Ubuntu Mono', monospace;">
-        <p><strong>1. Tu Nombre:</strong><br>{{Answer1}}</p>
-        <p><strong>2. Tu Negocio o Idea:</strong><br>{{Answer2}}</p>
-        <p><strong>3. Tu Servicio/Producto Principal:</strong><br>{{Answer3}}</p>
-        <p><strong>4. Tu Cliente Ideal:</strong><br>{{Answer4}}</p>
-        <p><strong>5. Tu Mayor Desafío Actual:</strong><br>{{Answer5}}</p>
-        <p><strong>6. Tu Email de Contacto:</strong><br>{{Answer6}}</p>
+        <p><strong>1. Tu Nombre:</strong><br>{Answer1}</p>
+        <p><strong>2. Tu Negocio o Idea:</strong><br>{Answer2}</p>
+        <p><strong>3. Tu Servicio/Producto Principal:</strong><br>{Answer3}</p>
+        <p><strong>4. Tu Cliente Ideal:</strong><br>{Answer4}</p>
+        <p><strong>5. Tu Mayor Desafío Actual:</strong><br>{Answer5}</p>
+        <p><strong>6. Tu Email de Contacto:</strong><br>{Answer6}</p>
     </div>
     <p style="line-height: 1.6;">No necesitas hacer nada más por ahora. El proceso continuará automáticamente.</p>
     <p style="line-height: 1.6;">Saludos,<br>El equipo de Vaitengewon Club</p>
   </div>
   <div style="background-color: #7030A0; color: white; text-align: center; padding: 15px; font-size: 12px; font-family: 'Ubuntu Mono', monospace;">
-    © {{current_year}} Vaitengewon Club. Todos los derechos reservados.
+    © {current_year} Vaitengewon Club. Todos los derechos reservados.
   </div>
 </div>
 """
+
 # --- FUNCIÓN PARA ENVIAR CONFIRMACIÓN DE RESPUESTAS ---
 def send_user_answers_email(chat_data: dict):
     user_id = chat_data.get('UserID', 'N/A')
