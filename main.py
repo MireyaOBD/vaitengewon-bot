@@ -44,6 +44,22 @@ def run_vaitengewon_workflow(chat_data: dict):
             print(f"[{user_id}] - ❌ DETENIDO: Fallo crítico al crear la base de datos en Notion.")
             return
 
+        # --- GUARDADO INICIAL EN HOJA 'INICIO' (CÓDIGO RESTAURADO) ---
+        print(f"[{user_id}] - ...Guardando respuestas iniciales en la hoja 'INICIO'...")
+        initial_sheet_data = {
+            "UserID": user_id, "ConversationState": "6", "Answer1": chat_data['Answer1'],
+            "Answer2": chat_data['Answer2'], "Answer3": chat_data['Answer3'], "Answer4": chat_data['Answer4'],
+            "Answer5": chat_data['Answer5'], "userEmail": chat_data['Answer6'], 
+            "lastUpdate": datetime.now().isoformat(),
+            "NotionDB_URL": db_info.get("db_url"),
+            "dbID": db_info.get("db_id")
+        }
+        if not services.gspread_append_row("INICIO", initial_sheet_data):
+                print(f"[{user_id}] - ❌ DETENIDO: Fallo al escribir la fila inicial en Google Sheets 'INICIO'.")
+                return
+        print(f"[{user_id}] - ✅ Respuestas iniciales guardadas en 'INICIO'.")
+        
+        # Preparamos el contexto inicial para el primer bloque
         contexto_inicial = {
             "idea_negocio": chat_data.get("Answer2"),
             "que_vende": chat_data.get("Answer2"),
@@ -92,12 +108,3 @@ def run_vaitengewon_workflow(chat_data: dict):
     except Exception as e:
         print(f"[{user_id}] - 🔥🔥🔥 ERROR INESPERADO Y FATAL EN EL WORKFLOW: {e} 🔥🔥🔥")
         traceback.print_exc()
-
-@app.post("/webhook/vaitengewon-bot")
-async def start_vaitengewon_process(chat_data: ChatInput, background_tasks: BackgroundTasks):
-    background_tasks.add_task(run_vaitengewon_workflow, chat_data.dict())
-    return {"status": "success", "message": "Proceso iniciado en segundo plano."}
-    
-@app.get("/")
-def read_root():
-    return {"message": "Servidor del Vaitengewon Bot está funcionando."}
