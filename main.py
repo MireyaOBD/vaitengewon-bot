@@ -108,3 +108,23 @@ def run_vaitengewon_workflow(chat_data: dict):
     except Exception as e:
         print(f"[{user_id}] - 🔥🔥🔥 ERROR INESPERADO Y FATAL EN EL WORKFLOW: {e} 🔥🔥🔥")
         traceback.print_exc()
+
+# En main.py (rama develop), añade esto al final del archivo
+
+# ==============================================================================
+# 6. DEFINICIÓN DE RUTAS (ENDPOINTS)
+# ==============================================================================
+@app.post("/webhook/vaitengewon-bot")
+async def start_vaitengewon_process(chat_data: ChatInput, background_tasks: BackgroundTasks):
+    """
+    Este endpoint recibe los datos del chat y dispara el workflow completo en segundo plano.
+    """
+    background_tasks.add_task(run_vaitengewon_workflow, chat_data.dict())
+    return {"status": "success", "message": "Proceso iniciado en segundo plano."}
+    
+@app.get("/")
+def read_root():
+    """
+    Endpoint raíz para verificar que el servidor está activo.
+    """
+    return {"message": "Servidor del Vaitengewon Bot está funcionando."}
